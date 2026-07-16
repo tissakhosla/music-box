@@ -1,4 +1,4 @@
-// Converts audio_files.txt (one Dropbox path per line) into a nested files.json tree.
+// Converts audio_files.txt (one Dropbox path per line) into a nested public/files.json tree.
 // Run with: node build-index.js
 
 const fs = require('fs');
@@ -36,5 +36,5 @@ function toSortedArray(node) {
 }
 
 const tree = toSortedArray(root);
-fs.writeFileSync('files.json', JSON.stringify(tree));
-console.log(`Wrote files.json (${lines.length} files)`);
+fs.writeFileSync('public/files.json', JSON.stringify(tree));
+console.log(`Wrote public/files.json (${lines.length} files)`);
