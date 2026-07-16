@@ -16,13 +16,21 @@ body {
 
 body.light { background: #fff; color: rgb(0, 120, 140); }
 
-#breadcrumb {
+#header {
   flex: none;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4em;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: calc(1rem + env(safe-area-inset-top)) 1rem 0.6rem;
+}
+
+#breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em;
   font-size: clamp(0.8rem, 3vw, 1rem);
+  min-height: 1.4em;
 }
 
 #breadcrumb button {
@@ -39,6 +47,20 @@ body.light { background: #fff; color: rgb(0, 120, 140); }
 #breadcrumb button:last-child { opacity: 1; text-decoration: none; cursor: default; }
 #breadcrumb button:hover { opacity: 1; }
 
+.search-label { opacity: 0.6; }
+
+#search {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #eee;
+  font-family: monospace;
+  font-size: 16px; /* keeps iOS from auto-zooming on focus */
+  padding: 0.5em 0.7em;
+  border-radius: 6px;
+}
+body.light #search { background: #f0f0f0; border-color: #bbb; color: rgb(0, 120, 140); }
+#search::placeholder { opacity: 0.4; }
+
 #listing {
   flex: 1;
   overflow-y: auto;
@@ -54,8 +76,8 @@ body.light { background: #fff; color: rgb(0, 120, 140); }
 
 .row {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.15rem;
   width: 100%;
   background: none;
   border: none;
@@ -63,7 +85,7 @@ body.light { background: #fff; color: rgb(0, 120, 140); }
   color: inherit;
   font-family: monospace;
   font-size: clamp(0.85rem, 3.5vw, 1rem);
-  padding: 0.8em 0.4em;
+  padding: 0.7em 0.4em;
   text-align: left;
   cursor: pointer;
 }
@@ -74,8 +96,17 @@ body.light .row:hover { background: #f0f0f0; }
 body.light .row:active { background: #e0e0e0; }
 .row.playing { font-weight: bold; }
 
+.row-main { display: flex; align-items: center; gap: 0.6rem; width: 100%; }
 .row .icon { flex: none; width: 20px; height: 20px; opacity: 0.7; }
 .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .subpath {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  padding-left: 1.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 #player {
   flex: none;
@@ -86,6 +117,15 @@ body.light .row:active { background: #e0e0e0; }
 body.light #player { background: #f5f5f5; border-top-color: #ccc; }
 
 #now-playing {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: monospace;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
   font-size: clamp(0.75rem, 3vw, 0.9rem);
   opacity: 0.85;
   white-space: nowrap;
@@ -114,6 +154,57 @@ body.light #player { background: #f5f5f5; border-top-color: #ccc; }
 #play-btn .icon { width: 32px; height: 32px; }
 #prev-btn .icon, #next-btn .icon { width: 24px; height: 24px; }
 
+#expanded {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: calc(1.5rem + env(safe-area-inset-top)) 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
+  background: #1a1a1a;
+  color: #eeeeee;
+}
+#expanded.open { display: flex; }
+body.light #expanded { background: #fff; color: rgb(0, 120, 140); }
+
+#collapse-btn {
+  position: absolute;
+  top: calc(1rem + env(safe-area-inset-top));
+  right: 1rem;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.4rem;
+  opacity: 0.7;
+}
+#collapse-btn:hover { opacity: 1; }
+#collapse-btn .icon { width: 24px; height: 24px; display: block; }
+
+#viz {
+  width: 100%;
+  max-width: 480px;
+  height: 140px;
+  display: block;
+}
+
+#expanded-title {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  font-size: clamp(1rem, 4.5vw, 1.4rem);
+  overflow-wrap: break-word;
+}
+
+#expanded #transport { width: 100%; max-width: 480px; }
+#expanded #seek { margin-top: 0; }
+#expanded #controls { gap: 2.5rem; margin-top: 1rem; }
+#expanded #play-btn .icon { width: 44px; height: 44px; }
+#expanded #prev-btn .icon, #expanded #next-btn .icon { width: 30px; height: 30px; }
+
 #theme-btn {
   position: fixed;
   top: calc(clamp(12px, 3vw, 20px) + env(safe-area-inset-top));
@@ -128,5 +219,6 @@ body.light #player { background: #f5f5f5; border-top-color: #ccc; }
   cursor: pointer;
   opacity: 0.6;
   transition: opacity 0.2s;
+  z-index: 10;
 }
 #theme-btn:hover { opacity: 1; }
