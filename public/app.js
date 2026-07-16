@@ -1,3 +1,5 @@
+const WORKER_URL = 'https://music-box-api.tissa-music.workers.dev'; // update after `wrangler deploy` if your subdomain differs
+
 const audio = document.getElementById('audio');
 const listingEl = document.getElementById('listing');
 const breadcrumbEl = document.getElementById('breadcrumb');
@@ -79,27 +81,30 @@ function render() {
   });
 }
 
-function streamUrlFor(file) {
-  // Step 2 wires this to the Cloudflare Worker + Dropbox. No live source yet.
-  return null;
+async function streamUrlFor(file) {
+  const res = await fetch(`${WORKER_URL}/stream?path=${encodeURIComponent(file.path)}`);
+  if (!res.ok) throw new Error(`Worker error: ${res.status}`);
+  const data = await res.json();
+  return data.url;
 }
 
-function playFile(file) {
+async function playFile(file) {
   currentTrackPath = file.path;
   currentFileIndex = currentFiles.findIndex(f => f.path === file.path);
   render();
 
-  const url = streamUrlFor(file);
-  if (!url) {
-    nowPlayingEl.textContent = `${file.name} — not connected to Dropbox yet`;
+  nowPlayingEl.textContent = `${file.name} — loading…`;
+  try {
+    const url = await streamUrlFor(file);
+    nowPlayingEl.textContent = file.name;
+    audio.src = url;
+    audio.play();
+  } catch (e) {
+    nowPlayingEl.textContent = `${file.name} — failed to load (${e.message})`;
     audio.pause();
     audio.removeAttribute('src');
     playBtn.innerHTML = PLAY_ICON;
-    return;
   }
-  nowPlayingEl.textContent = file.name;
-  audio.src = url;
-  audio.play();
 }
 
 function playAtIndex(i) {

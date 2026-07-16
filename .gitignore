@@ -1,3 +1,6 @@
 .claude/
 audio_files.txt
 files.json
+.wrangler
+.dev.vars*
+!.dev.vars.example
