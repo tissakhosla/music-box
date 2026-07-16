@@ -1,6 +1,6 @@
 const DROPBOX_TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
 const DROPBOX_TEMP_LINK_URL = 'https://api.dropboxapi.com/2/files/get_temporary_link';
-const ALLOWED_ORIGIN = 'https://music-box.pages.dev';
+const ALLOWED_ORIGIN = 'https://music-box-43b.pages.dev';
 
 let cachedAccessToken = null;
 let cachedAccessTokenExpiry = 0;
