@@ -36,7 +36,10 @@ async function getStreamUrl(env, path) {
     },
     body: JSON.stringify({ path: `/${path}` }),
   });
-  if (!res.ok) throw new Error(`Dropbox get_temporary_link failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Dropbox get_temporary_link failed: ${res.status} ${body}`);
+  }
   const data = await res.json();
   return data.link;
 }
