@@ -46,14 +46,17 @@
     <button id="collapse-btn" aria-label="Close" type="button">
       <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
     </button>
+    <div id="artwork-wrap"><img id="artwork" alt=""></div>
     <canvas id="viz"></canvas>
     <div id="expanded-title"></div>
+    <div id="expanded-artist"></div>
   </div>
 
   <button id="theme-btn" type="button">light</button>
 
   <audio id="audio" preload="none" crossorigin="anonymous"></audio>
 
+  <script src="lib/jsmediatags.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

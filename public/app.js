@@ -14,6 +14,9 @@ const nextBtn = document.getElementById('next-btn');
 const themeBtn = document.getElementById('theme-btn');
 const expandedEl = document.getElementById('expanded');
 const expandedTitleEl = document.getElementById('expanded-title');
+const expandedArtistEl = document.getElementById('expanded-artist');
+const artworkWrapEl = document.getElementById('artwork-wrap');
+const artworkEl = document.getElementById('artwork');
 const collapseBtn = document.getElementById('collapse-btn');
 const transportEl = document.getElementById('transport');
 const playerEl = document.getElementById('player');
@@ -42,6 +45,7 @@ let audioCtx = null;
 let analyser = null;
 let vizBuf = null;
 let vizRafId = null;
+let currentArtworkUrl = null;
 
 function fmtTime(sec) {
   if (!isFinite(sec)) return '0:00';
@@ -50,9 +54,40 @@ function fmtTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function setNowPlayingText(text) {
-  nowPlayingEl.textContent = text;
-  expandedTitleEl.textContent = text;
+function setNowPlaying(title, artist) {
+  nowPlayingEl.textContent = artist ? `${title} — ${artist}` : title;
+  expandedTitleEl.textContent = title;
+  expandedArtistEl.textContent = artist || '';
+}
+
+function setArtwork(url) {
+  if (currentArtworkUrl) URL.revokeObjectURL(currentArtworkUrl);
+  currentArtworkUrl = url;
+  if (url) {
+    artworkEl.src = url;
+    artworkWrapEl.classList.add('has-art');
+  } else {
+    artworkEl.removeAttribute('src');
+    artworkWrapEl.classList.remove('has-art');
+  }
+}
+
+function fetchMetadata(file, url) {
+  if (!window.jsmediatags) return;
+  window.jsmediatags.read(url, {
+    onSuccess: (tag) => {
+      if (currentTrackPath !== file.path) return;
+      const t = tag.tags || {};
+      setNowPlaying(t.title || file.name, t.artist || '');
+      if (t.picture) {
+        const { data, format } = t.picture;
+        setArtwork(URL.createObjectURL(new Blob([new Uint8Array(data)], { type: format })));
+      } else {
+        setArtwork(null);
+      }
+    },
+    onError: () => { if (currentTrackPath === file.path) setArtwork(null); },
+  });
 }
 
 function flatten(node, acc) {
@@ -202,10 +237,11 @@ async function playFile(file, resumeTime = 0) {
   currentFileIndex = currentFiles.findIndex(f => f.path === file.path);
   render();
 
-  setNowPlayingText(`${file.name} — loading…`);
+  setArtwork(null);
+  setNowPlaying(`${file.name} — loading…`, '');
   try {
     const url = await streamUrlFor(file);
-    setNowPlayingText(file.name);
+    setNowPlaying(file.name, '');
     audio.src = url;
     if (resumeTime > 0) {
       const onLoaded = () => {
@@ -215,8 +251,9 @@ async function playFile(file, resumeTime = 0) {
       audio.addEventListener('loadedmetadata', onLoaded);
     }
     audio.play();
+    fetchMetadata(file, url);
   } catch (e) {
-    setNowPlayingText(`${file.name} — failed to load (${e.message})`);
+    setNowPlaying(`${file.name} — failed to load (${e.message})`, '');
     audio.pause();
     audio.removeAttribute('src');
     playBtn.innerHTML = PLAY_ICON;
@@ -352,7 +389,7 @@ fetch('files.json')
       const file = allFiles.find(f => f.path === pendingResume.trackPath);
       if (file) {
         currentTrackPath = file.path;
-        setNowPlayingText(`${file.name} — tap play to resume`);
+        setNowPlaying(`${file.name} — tap play to resume`, '');
       } else {
         pendingResume = null;
       }
