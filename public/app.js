@@ -154,7 +154,13 @@ function renderBrowse() {
 
   breadcrumbEl.innerHTML = '';
   const crumbs = [{ name: 'Music Box', path: [] }, ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) }))];
-  crumbs.forEach(c => {
+  crumbs.forEach((c, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '/';
+      breadcrumbEl.appendChild(sep);
+    }
     const btn = document.createElement('button');
     btn.textContent = c.name;
     btn.addEventListener('click', () => { path = c.path; render(); });
@@ -221,12 +227,16 @@ function highlightCursor() {
 function render() {
   localStorage.setItem('path', JSON.stringify(path));
   const key = searchQuery ? `search:${searchQuery}` : `path:${path.join('/')}`;
-  if (key !== lastContextKey) {
+  const navigated = key !== lastContextKey;
+  if (navigated) {
     cursorIndex = 0;
     lastContextKey = key;
   }
   searchQuery ? renderSearch() : renderBrowse();
   highlightCursor();
+  // only snap the breadcrumb to the current (rightmost) segment on actual navigation,
+  // not on every re-render (e.g. starting playback) — otherwise a manual scroll-back gets undone
+  if (navigated) breadcrumbEl.scrollLeft = breadcrumbEl.scrollWidth;
 }
 
 function moveCursor(delta) {

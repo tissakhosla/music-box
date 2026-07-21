@@ -83,14 +83,19 @@ body {
 #breadcrumb {
   flex: none;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.35em;
   padding: 0.3rem 0.7rem;
   font-size: 0.75rem;
   opacity: 0.75;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+#breadcrumb::-webkit-scrollbar { display: none; }
 #breadcrumb button {
+  flex: none;
   background: none;
   border: none;
   color: inherit;
@@ -99,9 +104,11 @@ body {
   cursor: pointer;
   text-decoration: underline;
   opacity: 0.7;
+  white-space: nowrap;
 }
 #breadcrumb button:last-child { opacity: 1; text-decoration: none; cursor: default; }
-.search-label { opacity: 0.7; }
+.crumb-sep { flex: none; opacity: 0.45; }
+.search-label { flex: none; opacity: 0.7; white-space: nowrap; }
 
 #listing {
   flex: 1;
