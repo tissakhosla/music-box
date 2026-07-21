@@ -8,53 +8,51 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Music Box">
-  <meta name="theme-color" content="#1a1a1a">
+  <meta name="theme-color" content="#d4d4d8">
 
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header id="header">
-    <div id="breadcrumb"></div>
-    <input id="search" type="search" placeholder="Search…" autocomplete="off" autocapitalize="off" spellcheck="false">
-  </header>
-
-  <main id="listing"></main>
-
-  <footer id="player">
-    <button id="now-playing" type="button">Nothing playing</button>
-    <div id="transport">
-      <input id="seek" type="range" min="0" max="100" value="0" step="0.1">
-      <div id="time-row">
-        <span id="time-current">0:00</span>
-        <span id="time-duration">0:00</span>
+  <div id="device">
+    <div id="screen">
+      <div id="screen-header">
+        <button id="theme-btn" type="button" aria-label="Toggle color">●</button>
+        <span id="screen-title">Music Box</span>
+        <span id="battery">🔋</span>
       </div>
-      <div id="controls">
-        <button id="prev-btn" aria-label="Previous">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6L10 12l10 6z" fill="currentColor"/></svg>
-        </button>
-        <button id="play-btn" aria-label="Play">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>
-        </button>
-        <button id="next-btn" aria-label="Next">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6l10 6-10 6z" fill="currentColor"/></svg>
-        </button>
+
+      <div id="screen-content">
+        <div id="browse-view">
+          <input id="search" type="search" placeholder="Search…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <div id="breadcrumb"></div>
+          <main id="listing"></main>
+        </div>
+
+        <div id="nowplaying-view">
+          <div id="artwork-wrap"><img id="artwork" alt=""></div>
+          <div id="np-title">Nothing playing</div>
+          <div id="np-artist"></div>
+          <div id="np-seek-row">
+            <span id="time-current">0:00</span>
+            <input id="seek" type="range" min="0" max="100" value="0" step="0.1">
+            <span id="time-duration">0:00</span>
+          </div>
+        </div>
       </div>
+
+      <button id="mini-status" type="button">Nothing playing</button>
     </div>
-  </footer>
 
-  <div id="expanded">
-    <button id="collapse-btn" aria-label="Close" type="button">
-      <svg class="icon" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-    </button>
-    <div id="artwork-wrap"><img id="artwork" alt=""></div>
-    <canvas id="viz"></canvas>
-    <div id="expanded-title"></div>
-    <div id="expanded-artist"></div>
+    <div id="wheel">
+      <button id="wheel-menu" class="wheel-btn wheel-top" type="button">MENU</button>
+      <button id="wheel-prev" class="wheel-btn wheel-left" type="button" aria-label="Previous">⏮</button>
+      <button id="wheel-next" class="wheel-btn wheel-right" type="button" aria-label="Next">⏭</button>
+      <button id="wheel-play" class="wheel-btn wheel-bottom" type="button" aria-label="Play/Pause">⏯</button>
+      <button id="wheel-select" type="button">SELECT</button>
+    </div>
   </div>
 
-  <button id="theme-btn" type="button">light</button>
-
-  <audio id="audio" preload="none" crossorigin="anonymous"></audio>
+  <audio id="audio" preload="none"></audio>
 
   <script src="lib/jsmediatags.min.js"></script>
   <script src="app.js"></script>

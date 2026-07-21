@@ -4,29 +4,22 @@ const audio = document.getElementById('audio');
 const listingEl = document.getElementById('listing');
 const breadcrumbEl = document.getElementById('breadcrumb');
 const searchEl = document.getElementById('search');
-const nowPlayingEl = document.getElementById('now-playing');
+const screenTitleEl = document.getElementById('screen-title');
+const screenContentEl = document.getElementById('screen-content');
+const miniStatusEl = document.getElementById('mini-status');
+const npTitleEl = document.getElementById('np-title');
+const npArtistEl = document.getElementById('np-artist');
 const seekEl = document.getElementById('seek');
 const timeCurrentEl = document.getElementById('time-current');
 const timeDurationEl = document.getElementById('time-duration');
-const playBtn = document.getElementById('play-btn');
-const prevBtn = document.getElementById('prev-btn');
-const nextBtn = document.getElementById('next-btn');
-const themeBtn = document.getElementById('theme-btn');
-const expandedEl = document.getElementById('expanded');
-const expandedTitleEl = document.getElementById('expanded-title');
-const expandedArtistEl = document.getElementById('expanded-artist');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
-const collapseBtn = document.getElementById('collapse-btn');
-const transportEl = document.getElementById('transport');
-const playerEl = document.getElementById('player');
-const vizCanvas = document.getElementById('viz');
-const vizCtx = vizCanvas.getContext('2d');
-
-const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
-const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
-const FOLDER_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10H3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-const FILE_ICON = '<svg class="icon" viewBox="0 0 24 24"><circle cx="8" cy="17" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 17V5l9-2v12" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+const themeBtn = document.getElementById('theme-btn');
+const wheelMenuBtn = document.getElementById('wheel-menu');
+const wheelPrevBtn = document.getElementById('wheel-prev');
+const wheelNextBtn = document.getElementById('wheel-next');
+const wheelPlayBtn = document.getElementById('wheel-play');
+const wheelSelectBtn = document.getElementById('wheel-select');
 
 const SEARCH_LIMIT = 300;
 const RESUME_SAVE_INTERVAL_MS = 5000;
@@ -40,11 +33,6 @@ let currentFileIndex = -1;
 let currentTrackPath = null;
 let pendingResume = null;
 let lastResumeSave = 0;
-
-let audioCtx = null;
-let analyser = null;
-let vizBuf = null;
-let vizRafId = null;
 let currentArtworkUrl = null;
 
 function fmtTime(sec) {
@@ -55,9 +43,9 @@ function fmtTime(sec) {
 }
 
 function setNowPlaying(title, artist) {
-  nowPlayingEl.textContent = artist ? `${title} — ${artist}` : title;
-  expandedTitleEl.textContent = title;
-  expandedArtistEl.textContent = artist || '';
+  miniStatusEl.textContent = artist ? `${title} — ${artist}` : title;
+  npTitleEl.textContent = title;
+  npArtistEl.textContent = artist || '';
 }
 
 function setArtwork(url) {
@@ -90,6 +78,9 @@ function fetchMetadata(file, url) {
   });
 }
 
+function showNowPlaying() { screenContentEl.classList.add('showing-nowplaying'); }
+function showBrowse() { screenContentEl.classList.remove('showing-nowplaying'); }
+
 function flatten(node, acc) {
   node.children.forEach(child => {
     if (child.type === 'folder') flatten(child, acc);
@@ -113,25 +104,32 @@ function makeRow(child, subpath) {
   row.className = 'row';
   if (child.type === 'file' && child.path === currentTrackPath) row.classList.add('playing');
 
-  const main = document.createElement('div');
-  main.className = 'row-main';
-  main.innerHTML = child.type === 'folder' ? FOLDER_ICON : FILE_ICON;
+  const text = document.createElement('div');
+  text.className = 'row-text';
   const nameSpan = document.createElement('span');
   nameSpan.className = 'name';
   nameSpan.textContent = child.name;
-  main.appendChild(nameSpan);
-  row.appendChild(main);
-
+  text.appendChild(nameSpan);
   if (subpath) {
-    const sub = document.createElement('div');
+    const sub = document.createElement('span');
     sub.className = 'subpath';
     sub.textContent = subpath;
-    row.appendChild(sub);
+    text.appendChild(sub);
+  }
+  row.appendChild(text);
+
+  if (child.type === 'folder') {
+    const chevron = document.createElement('span');
+    chevron.className = 'chevron';
+    chevron.textContent = '›';
+    row.appendChild(chevron);
   }
   return row;
 }
 
 function renderBrowse() {
+  screenTitleEl.textContent = path.length ? path[path.length - 1] : 'Music Box';
+
   breadcrumbEl.innerHTML = '';
   const crumbs = [{ name: 'Music Box', path: [] }, ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) }))];
   crumbs.forEach(c => {
@@ -164,6 +162,7 @@ function renderBrowse() {
 }
 
 function renderSearch() {
+  screenTitleEl.textContent = 'Search';
   breadcrumbEl.innerHTML = '';
   const q = searchQuery.toLowerCase();
   const matches = allFiles.filter(f => f.name.toLowerCase().includes(q));
@@ -216,22 +215,7 @@ function saveResume() {
   localStorage.setItem('resume', JSON.stringify({ trackPath: currentTrackPath, time: audio.currentTime }));
 }
 
-function ensureAudioGraph() {
-  if (audioCtx) {
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return;
-  }
-  const AudioCtor = window.AudioContext || window.webkitAudioContext;
-  audioCtx = new AudioCtor();
-  const source = audioCtx.createMediaElementSource(audio);
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  source.connect(analyser);
-  analyser.connect(audioCtx.destination);
-}
-
 async function playFile(file, resumeTime = 0) {
-  ensureAudioGraph();
   pendingResume = null;
   currentTrackPath = file.path;
   currentFileIndex = currentFiles.findIndex(f => f.path === file.path);
@@ -256,7 +240,6 @@ async function playFile(file, resumeTime = 0) {
     setNowPlaying(`${file.name} — failed to load (${e.message})`, '');
     audio.pause();
     audio.removeAttribute('src');
-    playBtn.innerHTML = PLAY_ICON;
   }
 }
 
@@ -265,7 +248,7 @@ function playAtIndex(i) {
   playFile(currentFiles[i]);
 }
 
-playBtn.addEventListener('click', () => {
+wheelPlayBtn.addEventListener('click', () => {
   if (audio.src) {
     audio.paused ? audio.play() : audio.pause();
     return;
@@ -275,11 +258,20 @@ playBtn.addEventListener('click', () => {
     if (file) playFile(file, pendingResume ? pendingResume.time : 0);
   }
 });
-prevBtn.addEventListener('click', () => playAtIndex(currentFileIndex - 1));
-nextBtn.addEventListener('click', () => playAtIndex(currentFileIndex + 1));
+wheelPrevBtn.addEventListener('click', () => playAtIndex(currentFileIndex - 1));
+wheelNextBtn.addEventListener('click', () => playAtIndex(currentFileIndex + 1));
+wheelSelectBtn.addEventListener('click', () => {
+  if (screenContentEl.classList.contains('showing-nowplaying')) { showBrowse(); return; }
+  if (currentTrackPath) showNowPlaying();
+});
+wheelMenuBtn.addEventListener('click', () => {
+  if (screenContentEl.classList.contains('showing-nowplaying')) { showBrowse(); return; }
+  if (searchQuery) { searchQuery = ''; searchEl.value = ''; render(); return; }
+  if (path.length) { path = path.slice(0, -1); render(); }
+});
+miniStatusEl.addEventListener('click', () => { if (currentTrackPath) showNowPlaying(); });
 
-audio.addEventListener('play', () => { playBtn.innerHTML = PAUSE_ICON; });
-audio.addEventListener('pause', () => { playBtn.innerHTML = PLAY_ICON; saveResume(); });
+audio.addEventListener('pause', saveResume);
 audio.addEventListener('ended', () => playAtIndex(currentFileIndex + 1));
 audio.addEventListener('timeupdate', () => {
   if (!isFinite(audio.duration)) return;
@@ -303,72 +295,12 @@ searchEl.addEventListener('input', () => {
   render();
 });
 
-function resizeViz() {
-  const dpr = window.devicePixelRatio || 1;
-  const rect = vizCanvas.getBoundingClientRect();
-  vizCanvas.width = Math.round(rect.width * dpr);
-  vizCanvas.height = Math.round(rect.height * dpr);
-  vizCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-function drawViz() {
-  vizRafId = requestAnimationFrame(drawViz);
-  const dpr = window.devicePixelRatio || 1;
-  const w = vizCanvas.width / dpr;
-  const h = vizCanvas.height / dpr;
-  const lineColor = document.body.classList.contains('light') ? 'rgb(0,120,140)' : '#eeeeee';
-  vizCtx.clearRect(0, 0, w, h);
-
-  if (!analyser) {
-    vizCtx.beginPath();
-    vizCtx.strokeStyle = lineColor;
-    vizCtx.globalAlpha = 0.3;
-    vizCtx.lineWidth = 1.5;
-    vizCtx.moveTo(0, h / 2);
-    vizCtx.lineTo(w, h / 2);
-    vizCtx.stroke();
-    vizCtx.globalAlpha = 1;
-    return;
-  }
-
-  if (!vizBuf) vizBuf = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteTimeDomainData(vizBuf);
-
-  vizCtx.beginPath();
-  vizCtx.strokeStyle = lineColor;
-  vizCtx.lineWidth = 1.5;
-  const sliceW = w / vizBuf.length;
-  vizBuf.forEach((sample, i) => {
-    const y = (sample / 128) * (h / 2);
-    i === 0 ? vizCtx.moveTo(0, y) : vizCtx.lineTo(i * sliceW, y);
-  });
-  vizCtx.stroke();
-}
-
-function setExpanded(open) {
-  if (open) {
-    expandedEl.appendChild(transportEl);
-    expandedEl.classList.add('open');
-    resizeViz();
-    if (!vizRafId) drawViz();
-  } else {
-    expandedEl.classList.remove('open');
-    playerEl.appendChild(transportEl);
-    if (vizRafId) { cancelAnimationFrame(vizRafId); vizRafId = null; }
-  }
-}
-nowPlayingEl.addEventListener('click', () => { if (currentTrackPath) setExpanded(true); });
-collapseBtn.addEventListener('click', () => setExpanded(false));
-window.addEventListener('resize', () => { if (expandedEl.classList.contains('open')) resizeViz(); });
-
 themeBtn.addEventListener('click', () => {
-  const light = document.body.classList.toggle('light');
-  themeBtn.textContent = light ? 'dark' : 'light';
-  localStorage.setItem('theme', light ? 'light' : 'dark');
+  const dark = document.body.classList.toggle('dark');
+  localStorage.setItem('theme', dark ? 'dark' : 'light');
 });
-if (localStorage.getItem('theme') === 'light') {
-  document.body.classList.add('light');
-  themeBtn.textContent = 'dark';
+if (localStorage.getItem('theme') === 'dark') {
+  document.body.classList.add('dark');
 }
 
 fetch('files.json')
