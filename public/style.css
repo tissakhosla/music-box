@@ -248,14 +248,17 @@ body.light #wheel { border-color: #bbb; }
   align-items: center;
   justify-content: center;
   pointer-events: none; /* the parent #wheel handles all gestures/taps */
+  transform: translate(-50%, -50%);
 }
 
 .wheel-btn .icon { width: 22px; height: 22px; display: block; }
 
-.wheel-top { top: 6%; left: 0; right: 0; height: 24%; font-size: 0.75rem; }
-.wheel-bottom { bottom: 6%; left: 0; right: 0; height: 24%; }
-.wheel-left { left: 5%; top: 0; bottom: 0; width: 24%; }
-.wheel-right { right: 5%; top: 0; bottom: 0; width: 24%; }
+/* positioned at the radial midpoint between the outer ring (50% radius)
+   and the inner SELECT circle (21% radius) — i.e. 50% ± 35.5% */
+.wheel-top { top: 14.5%; left: 50%; font-size: 0.75rem; }
+.wheel-bottom { top: 85.5%; left: 50%; }
+.wheel-left { top: 50%; left: 14.5%; }
+.wheel-right { top: 50%; left: 85.5%; }
 
 #wheel-select {
   position: absolute;
