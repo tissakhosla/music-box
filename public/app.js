@@ -75,6 +75,7 @@ function setPlayingState() {
 }
 
 function setArtwork(url) {
+  artworkWrapEl.classList.remove('loading');
   if (currentArtworkUrl) URL.revokeObjectURL(currentArtworkUrl);
   currentArtworkUrl = url;
   if (url) {
@@ -88,6 +89,7 @@ function setArtwork(url) {
 
 function fetchMetadata(file, url) {
   if (!window.jsmediatags) return;
+  artworkWrapEl.classList.add('loading');
   window.jsmediatags.read(url, {
     onSuccess: (tag) => {
       if (currentTrackPath !== file.path) return;
