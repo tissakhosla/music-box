@@ -264,7 +264,7 @@ body.light #wheel { border-color: #bbb; }
 
 /* positioned at the radial midpoint between the outer ring (50% radius)
    and the inner SELECT circle (21% radius) — i.e. 50% ± 35.5% */
-.wheel-top { top: 14.5%; left: 50%; font-size: 0.75rem; }
+.wheel-top { top: 14.5%; left: 50%; }
 .wheel-bottom { top: 85.5%; left: 50%; }
 .wheel-left { top: 50%; left: 14.5%; }
 .wheel-right { top: 50%; left: 85.5%; }
@@ -277,16 +277,7 @@ body.light #wheel { border-color: #bbb; }
   width: 42%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border: 1px solid #444;
-  color: inherit;
-  font-family: monospace;
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  opacity: 0.75;
   pointer-events: none;
 }
 body.light #wheel-select { border-color: #bbb; }
