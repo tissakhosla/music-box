@@ -173,16 +173,24 @@ body.light .row.cursor.playing { background: #dcecee; }
   border-top: 1px solid #444;
   color: inherit;
   font-family: monospace;
-  text-align: center;
+  text-align: left;
   cursor: pointer;
   padding: 0.4rem 0.6rem;
   font-size: 0.75rem;
   opacity: 0.85;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 body.light #mini-status { border-top-color: #bbb; }
+
+#mini-status-text { display: inline-block; white-space: nowrap; }
+#mini-status-text.marquee { animation: marquee 7s ease-in-out infinite; }
+
+@keyframes marquee {
+  0%, 12% { transform: translateX(0); }
+  50%, 62% { transform: translateX(var(--marquee-distance, 0)); }
+  100% { transform: translateX(0); }
+}
 
 /* ---------- now playing screen ---------- */
 

@@ -7,6 +7,7 @@ const searchEl = document.getElementById('search');
 const screenTitleEl = document.getElementById('screen-title');
 const screenContentEl = document.getElementById('screen-content');
 const miniStatusEl = document.getElementById('mini-status');
+const miniStatusTextEl = document.getElementById('mini-status-text');
 const npTitleEl = document.getElementById('np-title');
 const npArtistEl = document.getElementById('np-artist');
 const seekEl = document.getElementById('seek');
@@ -47,9 +48,21 @@ function fmtTime(sec) {
 }
 
 function setNowPlaying(title, artist) {
-  miniStatusEl.textContent = artist ? `${title} — ${artist}` : title;
+  miniStatusTextEl.textContent = artist ? `${title} — ${artist}` : title;
   npTitleEl.textContent = title;
   npArtistEl.textContent = artist || '';
+
+  miniStatusTextEl.classList.remove('marquee');
+  miniStatusTextEl.style.removeProperty('--marquee-distance');
+  requestAnimationFrame(() => {
+    const style = getComputedStyle(miniStatusEl);
+    const available = miniStatusEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const overflow = miniStatusTextEl.scrollWidth - available;
+    if (overflow > 0) {
+      miniStatusTextEl.style.setProperty('--marquee-distance', `-${overflow}px`);
+      miniStatusTextEl.classList.add('marquee');
+    }
+  });
 }
 
 function setArtwork(url) {
