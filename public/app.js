@@ -240,7 +240,7 @@ function render() {
 }
 
 function moveCursor(delta) {
-  if (!currentRows.length || screenContentEl.classList.contains('showing-nowplaying')) return;
+  if (!currentRows.length) return;
   cursorIndex = Math.max(0, Math.min(currentRows.length - 1, cursorIndex + delta));
   highlightCursor();
 }
@@ -248,6 +248,12 @@ function moveCursor(delta) {
 function activateCursor() {
   const item = currentRows[cursorIndex];
   if (item) activate(item, cursorIndex);
+}
+
+function seekBy(steps) {
+  if (!isFinite(audio.duration) || !audio.src) return;
+  const stepSeconds = Math.max(2, audio.duration * 0.005);
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + steps * stepSeconds));
 }
 
 async function streamUrlFor(file) {
@@ -388,15 +394,16 @@ wheelEl.addEventListener('pointermove', (e) => {
   if (delta < -180) delta += 360;
   accumAngle += delta;
   lastAngle = angle;
-  while (accumAngle >= DEGREES_PER_STEP) { moveCursor(1); accumAngle -= DEGREES_PER_STEP; }
-  while (accumAngle <= -DEGREES_PER_STEP) { moveCursor(-1); accumAngle += DEGREES_PER_STEP; }
+  const step = screenContentEl.classList.contains('showing-nowplaying') ? seekBy : moveCursor;
+  while (accumAngle >= DEGREES_PER_STEP) { step(1); accumAngle -= DEGREES_PER_STEP; }
+  while (accumAngle <= -DEGREES_PER_STEP) { step(-1); accumAngle += DEGREES_PER_STEP; }
 });
 
 wheelEl.addEventListener('pointerup', (e) => {
   dragging = false;
   if (totalMove >= 10) return; // was a drag, not a tap
   const zone = zoneFromPoint(e.clientX, e.clientY);
-  if (zone === 'select') activateCursor();
+  if (zone === 'select') { if (!screenContentEl.classList.contains('showing-nowplaying')) activateCursor(); }
   else if (zone === 'menu') doMenu();
   else if (zone === 'play') togglePlayPause();
   else if (zone === 'prev') playAtIndex(currentFileIndex - 1);
