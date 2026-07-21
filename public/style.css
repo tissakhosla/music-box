@@ -21,14 +21,14 @@ body.light { background: #fff; color: rgb(0, 120, 140); }
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: clamp(0.8rem, 3vh, 1.4rem);
-  padding: calc(1.1rem + env(safe-area-inset-top)) 1.1rem calc(1.1rem + env(safe-area-inset-bottom));
+  gap: clamp(1.4rem, 5vh, 2.4rem);
+  padding: calc(0.75rem + env(safe-area-inset-top)) 0.8rem calc(0.75rem + env(safe-area-inset-bottom));
 }
 
 /* ---------- screen ---------- */
 
 #screen {
-  flex: 1 1 56%;
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -226,7 +226,7 @@ body.light #mini-status { border-top-color: #bbb; }
 #wheel {
   position: relative;
   flex: none;
-  width: min(72vw, 260px);
+  width: min(66vw, 240px);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   border-radius: 50%;
