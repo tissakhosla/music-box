@@ -212,7 +212,32 @@ body {
   opacity: 0.75;
   margin-top: auto;
 }
-#seek { flex: 1; accent-color: currentColor; }
+#seek {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 24px; /* touch target, actual visible track is thinner via the pseudo-elements below */
+  background: transparent;
+  outline: none;
+  margin: 0;
+}
+#seek::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #eee 0%, #eee var(--progress, 0%), #444 var(--progress, 0%), #444 100%);
+}
+#seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #eee;
+  margin-top: -4.5px;
+  cursor: pointer;
+}
+#seek::-moz-range-track { height: 3px; border-radius: 999px; background: #444; }
+#seek::-moz-range-progress { height: 3px; border-radius: 999px; background: #eee; }
+#seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #eee; border: none; cursor: pointer; }
 
 /* ---------- click wheel ---------- */
 

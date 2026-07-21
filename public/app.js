@@ -82,7 +82,7 @@ function fetchMetadata(file, url) {
     onSuccess: (tag) => {
       if (currentTrackPath !== file.path) return;
       const t = tag.tags || {};
-      setNowPlaying(t.title || file.name, t.artist || '');
+      // title/artist are intentionally not displayed — artwork only
       if (t.picture) {
         const { data, format } = t.picture;
         setArtwork(URL.createObjectURL(new Blob([new Uint8Array(data)], { type: format })));
@@ -279,7 +279,7 @@ async function playFile(file, resumeTime = 0) {
   setNowPlaying(`${file.name} — loading…`, '');
   try {
     const url = await streamUrlFor(file);
-    setNowPlaying(file.name, '');
+    setNowPlaying('', ''); // clear the "loading…" status once ready — track name isn't displayed
     audio.src = url;
     if (resumeTime > 0) {
       const onLoaded = () => {
@@ -326,7 +326,9 @@ audio.addEventListener('pause', () => { wheelPlayBtn.innerHTML = PLAY_ICON; save
 audio.addEventListener('ended', () => playAtIndex(currentFileIndex + 1));
 audio.addEventListener('timeupdate', () => {
   if (!isFinite(audio.duration)) return;
-  seekEl.value = (audio.currentTime / audio.duration) * 100;
+  const pct = (audio.currentTime / audio.duration) * 100;
+  seekEl.value = pct;
+  seekEl.style.setProperty('--progress', `${pct}%`);
   timeCurrentEl.textContent = fmtTime(audio.currentTime);
   timeDurationEl.textContent = fmtTime(audio.duration);
   const now = Date.now();
@@ -338,6 +340,7 @@ audio.addEventListener('timeupdate', () => {
 seekEl.addEventListener('input', () => {
   if (!isFinite(audio.duration)) return;
   audio.currentTime = (seekEl.value / 100) * audio.duration;
+  seekEl.style.setProperty('--progress', `${seekEl.value}%`);
 });
 window.addEventListener('pagehide', saveResume);
 
