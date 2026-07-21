@@ -46,11 +46,7 @@ function fmtTime(sec) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-function setNowPlaying(title, artist) {
-  miniStatusTextEl.textContent = artist ? `${title} — ${artist}` : title;
-  npTitleEl.textContent = title;
-  npArtistEl.textContent = artist || '';
-
+function refreshMarquee() {
   miniStatusTextEl.classList.remove('marquee');
   miniStatusTextEl.style.removeProperty('--marquee-distance');
   requestAnimationFrame(() => {
@@ -64,12 +60,26 @@ function setNowPlaying(title, artist) {
   });
 }
 
-// once a track is actually playing (no error, not still loading): banner keeps a generic
-// "Now Playing" indicator, but the full-screen title/artist stay blank (artwork-focused)
-function setPlayingState() {
-  miniStatusTextEl.classList.remove('marquee');
-  miniStatusTextEl.style.removeProperty('--marquee-distance');
-  miniStatusTextEl.textContent = 'Now Playing';
+// sets the banner text only (mini-status) — used both for status messages
+// (loading/error/resume-prompt) and for real track info once playing
+function setBannerText(text) {
+  miniStatusTextEl.textContent = text;
+  refreshMarquee();
+}
+
+// status messages (loading/error/resume-prompt) show on both the banner and the
+// full-screen title/artist — these aren't "the track name", they're operational feedback
+function setNowPlaying(title, artist) {
+  setBannerText(artist ? `${title} — ${artist}` : title);
+  npTitleEl.textContent = title;
+  npArtistEl.textContent = artist || '';
+}
+
+// once a track is actually playing: banner shows the real track name (updated again with
+// title/artist once embedded metadata resolves), but the full-screen title/artist stay
+// blank — that screen is artwork-focused by design
+function setPlayingState(file) {
+  setBannerText(file.name);
   npTitleEl.textContent = '';
   npArtistEl.textContent = '';
 }
@@ -94,7 +104,9 @@ function fetchMetadata(file, url) {
     onSuccess: (tag) => {
       if (currentTrackPath !== file.path) return;
       const t = tag.tags || {};
-      // title/artist are intentionally not displayed — artwork only
+      if (t.title || t.artist) {
+        setBannerText(t.artist ? `${t.title || file.name} — ${t.artist}` : t.title);
+      }
       if (t.picture) {
         const { data, format } = t.picture;
         setArtwork(URL.createObjectURL(new Blob([new Uint8Array(data)], { type: format })));
@@ -291,7 +303,7 @@ async function playFile(file, resumeTime = 0) {
   setNowPlaying(`${file.name} — loading…`, '');
   try {
     const url = await streamUrlFor(file);
-    setPlayingState();
+    setPlayingState(file);
     audio.src = url;
     if (resumeTime > 0) {
       const onLoaded = () => {
