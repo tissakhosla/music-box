@@ -296,11 +296,13 @@ searchEl.addEventListener('input', () => {
 });
 
 themeBtn.addEventListener('click', () => {
-  const dark = document.body.classList.toggle('dark');
-  localStorage.setItem('theme', dark ? 'dark' : 'light');
+  const light = document.body.classList.toggle('light');
+  themeBtn.textContent = light ? 'dark' : 'light';
+  localStorage.setItem('theme', light ? 'light' : 'dark');
 });
-if (localStorage.getItem('theme') === 'dark') {
-  document.body.classList.add('dark');
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light');
+  themeBtn.textContent = 'dark';
 }
 
 fetch('files.json')
