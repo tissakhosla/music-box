@@ -35,7 +35,6 @@ let currentFileIndex = -1;
 let currentTrackPath = null;
 let pendingResume = null;
 let lastResumeSave = 0;
-let currentArtworkUrl = null;
 let cursorIndex = 0;
 let lastContextKey = null;
 
@@ -86,8 +85,6 @@ function setPlayingState(file) {
 
 function setArtwork(url) {
   artworkWrapEl.classList.remove('loading');
-  if (currentArtworkUrl) URL.revokeObjectURL(currentArtworkUrl);
-  currentArtworkUrl = url;
   if (url) {
     artworkEl.src = url;
     artworkWrapEl.classList.add('has-art');
@@ -97,10 +94,23 @@ function setArtwork(url) {
   }
 }
 
-function fetchMetadata(file, url) {
+async function fetchMetadata(file) {
   if (!window.jsmediatags) return;
   artworkWrapEl.classList.add('loading');
-  window.jsmediatags.read(url, {
+
+  // fetch a separate temp link rather than reusing the one <audio> is actively streaming
+  // from — avoids two concurrent different-Range requests to the exact same URL, which
+  // some WebKit versions handle unreliably
+  let metaUrl;
+  try {
+    metaUrl = await streamUrlFor(file);
+  } catch (e) {
+    artworkWrapEl.classList.remove('loading');
+    return;
+  }
+  if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
+
+  window.jsmediatags.read(metaUrl, {
     onSuccess: (tag) => {
       if (currentTrackPath !== file.path) return;
       const t = tag.tags || {};
@@ -109,7 +119,13 @@ function fetchMetadata(file, url) {
       }
       if (t.picture) {
         const { data, format } = t.picture;
-        setArtwork(URL.createObjectURL(new Blob([new Uint8Array(data)], { type: format })));
+        const blob = new Blob([new Uint8Array(data)], { type: format });
+        // dataURL via FileReader instead of URL.createObjectURL — object URLs for <img>
+        // have a history of unreliable rendering on iOS Safari, dataURLs don't have that issue
+        const reader = new FileReader();
+        reader.onload = () => { if (currentTrackPath === file.path) setArtwork(reader.result); };
+        reader.onerror = () => setArtwork(null);
+        reader.readAsDataURL(blob);
       } else {
         setArtwork(null);
       }
@@ -313,7 +329,7 @@ async function playFile(file, resumeTime = 0) {
       audio.addEventListener('loadedmetadata', onLoaded);
     }
     audio.play();
-    fetchMetadata(file, url);
+    fetchMetadata(file);
   } catch (e) {
     setNowPlaying(`${file.name} — failed to load (${e.message})`, '');
     audio.pause();
