@@ -15,7 +15,6 @@ const timeCurrentEl = document.getElementById('time-current');
 const timeDurationEl = document.getElementById('time-duration');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
-const themeBtn = document.getElementById('theme-btn');
 const wheelEl = document.getElementById('wheel');
 const wheelPlayBtn = document.getElementById('wheel-play');
 
@@ -330,16 +329,6 @@ searchEl.addEventListener('input', () => {
   searchQuery = searchEl.value.trim();
   render();
 });
-
-themeBtn.addEventListener('click', () => {
-  const light = document.body.classList.toggle('light');
-  themeBtn.textContent = light ? 'dark' : 'light';
-  localStorage.setItem('theme', light ? 'light' : 'dark');
-});
-if (localStorage.getItem('theme') === 'light') {
-  document.body.classList.add('light');
-  themeBtn.textContent = 'dark';
-}
 
 // ---------- click wheel: drag anywhere on the ring to scroll the list, tap a zone to trigger it ----------
 
