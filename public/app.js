@@ -94,9 +94,21 @@ function setArtwork(url) {
   }
 }
 
+// TEMPORARY diagnostic: surfaces the actual error text in the banner instead of silently
+// clearing artwork, since we can't get real console output from an iPhone without a Mac.
+// Remove once the underlying WebKit issue is identified.
+function showArtworkDebug(msg) {
+  artworkWrapEl.classList.remove('loading');
+  setBannerText(`[artwork: ${msg}]`);
+}
+
 async function fetchMetadata(file) {
-  if (!window.jsmediatags) return;
+  if (!window.jsmediatags) { showArtworkDebug('jsmediatags not loaded'); return; }
   artworkWrapEl.classList.add('loading');
+
+  const timeoutId = setTimeout(() => {
+    if (currentTrackPath === file.path) showArtworkDebug('timed out after 20s, no callback fired');
+  }, 20000);
 
   // fetch a separate temp link rather than reusing the one <audio> is actively streaming
   // from — avoids two concurrent different-Range requests to the exact same URL, which
@@ -105,32 +117,42 @@ async function fetchMetadata(file) {
   try {
     metaUrl = await streamUrlFor(file);
   } catch (e) {
-    artworkWrapEl.classList.remove('loading');
+    clearTimeout(timeoutId);
+    showArtworkDebug(`stream url fetch failed: ${e.message}`);
     return;
   }
-  if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
+  if (currentTrackPath !== file.path) { clearTimeout(timeoutId); artworkWrapEl.classList.remove('loading'); return; }
 
   window.jsmediatags.read(metaUrl, {
     onSuccess: (tag) => {
+      clearTimeout(timeoutId);
       if (currentTrackPath !== file.path) return;
-      const t = tag.tags || {};
-      if (t.title || t.artist) {
-        setBannerText(t.artist ? `${t.title || file.name} — ${t.artist}` : t.title);
-      }
-      if (t.picture) {
-        const { data, format } = t.picture;
-        const blob = new Blob([new Uint8Array(data)], { type: format });
-        // dataURL via FileReader instead of URL.createObjectURL — object URLs for <img>
-        // have a history of unreliable rendering on iOS Safari, dataURLs don't have that issue
-        const reader = new FileReader();
-        reader.onload = () => { if (currentTrackPath === file.path) setArtwork(reader.result); };
-        reader.onerror = () => setArtwork(null);
-        reader.readAsDataURL(blob);
-      } else {
-        setArtwork(null);
+      try {
+        const t = tag.tags || {};
+        if (t.title || t.artist) {
+          setBannerText(t.artist ? `${t.title || file.name} — ${t.artist}` : t.title);
+        }
+        if (t.picture) {
+          const { data, format } = t.picture;
+          const blob = new Blob([new Uint8Array(data)], { type: format });
+          // dataURL via FileReader instead of URL.createObjectURL — object URLs for <img>
+          // have a history of unreliable rendering on iOS Safari, dataURLs don't have that issue
+          const reader = new FileReader();
+          reader.onload = () => { if (currentTrackPath === file.path) setArtwork(reader.result); };
+          reader.onerror = () => showArtworkDebug(`FileReader error: ${reader.error && reader.error.message}`);
+          reader.readAsDataURL(blob);
+        } else {
+          setArtwork(null);
+        }
+      } catch (e) {
+        showArtworkDebug(`onSuccess threw: ${e.message}`);
       }
     },
-    onError: () => { if (currentTrackPath === file.path) setArtwork(null); },
+    onError: (error) => {
+      clearTimeout(timeoutId);
+      if (currentTrackPath !== file.path) return;
+      showArtworkDebug(`jsmediatags error: ${(error && (error.info || error.type || JSON.stringify(error))) || 'unknown'}`);
+    },
   });
 }
 
