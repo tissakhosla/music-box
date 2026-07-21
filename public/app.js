@@ -15,25 +15,29 @@ const timeDurationEl = document.getElementById('time-duration');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
 const themeBtn = document.getElementById('theme-btn');
-const wheelMenuBtn = document.getElementById('wheel-menu');
-const wheelPrevBtn = document.getElementById('wheel-prev');
-const wheelNextBtn = document.getElementById('wheel-next');
+const wheelEl = document.getElementById('wheel');
 const wheelPlayBtn = document.getElementById('wheel-play');
-const wheelSelectBtn = document.getElementById('wheel-select');
+
+const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
+const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
 
 const SEARCH_LIMIT = 300;
 const RESUME_SAVE_INTERVAL_MS = 5000;
+const DEGREES_PER_STEP = 20; // wheel drag distance per list move, mimics the physical click wheel's detents
 
 let root = null;
 let allFiles = [];
 let path = [];
 let searchQuery = '';
-let currentFiles = [];
+let currentRows = [];   // folders+files currently rendered, for wheel cursor navigation
+let currentFiles = [];  // files only, for prev/next track skipping
 let currentFileIndex = -1;
 let currentTrackPath = null;
 let pendingResume = null;
 let lastResumeSave = 0;
 let currentArtworkUrl = null;
+let cursorIndex = 0;
+let lastContextKey = null;
 
 function fmtTime(sec) {
   if (!isFinite(sec)) return '0:00';
@@ -127,6 +131,12 @@ function makeRow(child, subpath) {
   return row;
 }
 
+function activate(item, index) {
+  cursorIndex = index;
+  if (item.type === 'folder') { path = [...path, item.name]; render(); }
+  else playFile(item);
+}
+
 function renderBrowse() {
   screenTitleEl.textContent = path.length ? path[path.length - 1] : 'Music Box';
 
@@ -141,6 +151,7 @@ function renderBrowse() {
 
   const node = getNodeAtPath(path);
   listingEl.innerHTML = '';
+  currentRows = node.children;
   currentFiles = node.children.filter(c => c.type === 'file');
 
   if (node.children.length === 0) {
@@ -151,12 +162,9 @@ function renderBrowse() {
     return;
   }
 
-  node.children.forEach(child => {
+  node.children.forEach((child, i) => {
     const row = makeRow(child);
-    row.addEventListener('click', () => {
-      if (child.type === 'folder') { path = [...path, child.name]; render(); }
-      else playFile(child);
-    });
+    row.addEventListener('click', () => activate(child, i));
     listingEl.appendChild(row);
   });
 }
@@ -165,7 +173,8 @@ function renderSearch() {
   screenTitleEl.textContent = 'Search';
   breadcrumbEl.innerHTML = '';
   const q = searchQuery.toLowerCase();
-  const matches = allFiles.filter(f => f.name.toLowerCase().includes(q));
+  const matches = allFiles.filter(f => f.name.toLowerCase().includes(q)).slice(0, SEARCH_LIMIT);
+  currentRows = matches;
   currentFiles = matches;
 
   const label = document.createElement('span');
@@ -182,25 +191,41 @@ function renderSearch() {
     return;
   }
 
-  matches.slice(0, SEARCH_LIMIT).forEach(file => {
+  matches.forEach((file, i) => {
     const slash = file.path.lastIndexOf('/');
     const dir = slash === -1 ? '' : file.path.slice(0, slash);
     const row = makeRow(file, dir);
-    row.addEventListener('click', () => playFile(file));
+    row.addEventListener('click', () => activate(file, i));
     listingEl.appendChild(row);
   });
+}
 
-  if (matches.length > SEARCH_LIMIT) {
-    const note = document.createElement('div');
-    note.id = 'empty';
-    note.textContent = `Showing first ${SEARCH_LIMIT} of ${matches.length} — refine your search`;
-    listingEl.appendChild(note);
-  }
+function highlightCursor() {
+  Array.from(listingEl.children).forEach((el, i) => el.classList.toggle('cursor', i === cursorIndex));
+  const el = listingEl.children[cursorIndex];
+  if (el) el.scrollIntoView({ block: 'nearest' });
 }
 
 function render() {
   localStorage.setItem('path', JSON.stringify(path));
+  const key = searchQuery ? `search:${searchQuery}` : `path:${path.join('/')}`;
+  if (key !== lastContextKey) {
+    cursorIndex = 0;
+    lastContextKey = key;
+  }
   searchQuery ? renderSearch() : renderBrowse();
+  highlightCursor();
+}
+
+function moveCursor(delta) {
+  if (!currentRows.length || screenContentEl.classList.contains('showing-nowplaying')) return;
+  cursorIndex = Math.max(0, Math.min(currentRows.length - 1, cursorIndex + delta));
+  highlightCursor();
+}
+
+function activateCursor() {
+  const item = currentRows[cursorIndex];
+  if (item) activate(item, cursorIndex);
 }
 
 async function streamUrlFor(file) {
@@ -216,6 +241,7 @@ function saveResume() {
 }
 
 async function playFile(file, resumeTime = 0) {
+  showNowPlaying();
   pendingResume = null;
   currentTrackPath = file.path;
   currentFileIndex = currentFiles.findIndex(f => f.path === file.path);
@@ -248,7 +274,7 @@ function playAtIndex(i) {
   playFile(currentFiles[i]);
 }
 
-wheelPlayBtn.addEventListener('click', () => {
+function togglePlayPause() {
   if (audio.src) {
     audio.paused ? audio.play() : audio.pause();
     return;
@@ -257,21 +283,18 @@ wheelPlayBtn.addEventListener('click', () => {
     const file = allFiles.find(f => f.path === currentTrackPath);
     if (file) playFile(file, pendingResume ? pendingResume.time : 0);
   }
-});
-wheelPrevBtn.addEventListener('click', () => playAtIndex(currentFileIndex - 1));
-wheelNextBtn.addEventListener('click', () => playAtIndex(currentFileIndex + 1));
-wheelSelectBtn.addEventListener('click', () => {
-  if (screenContentEl.classList.contains('showing-nowplaying')) { showBrowse(); return; }
-  if (currentTrackPath) showNowPlaying();
-});
-wheelMenuBtn.addEventListener('click', () => {
+}
+
+function doMenu() {
   if (screenContentEl.classList.contains('showing-nowplaying')) { showBrowse(); return; }
   if (searchQuery) { searchQuery = ''; searchEl.value = ''; render(); return; }
   if (path.length) { path = path.slice(0, -1); render(); }
-});
+}
+
 miniStatusEl.addEventListener('click', () => { if (currentTrackPath) showNowPlaying(); });
 
-audio.addEventListener('pause', saveResume);
+audio.addEventListener('play', () => { wheelPlayBtn.innerHTML = PAUSE_ICON; });
+audio.addEventListener('pause', () => { wheelPlayBtn.innerHTML = PLAY_ICON; saveResume(); });
 audio.addEventListener('ended', () => playAtIndex(currentFileIndex + 1));
 audio.addEventListener('timeupdate', () => {
   if (!isFinite(audio.duration)) return;
@@ -304,6 +327,70 @@ if (localStorage.getItem('theme') === 'light') {
   document.body.classList.add('light');
   themeBtn.textContent = 'dark';
 }
+
+// ---------- click wheel: drag anywhere on the ring to scroll the list, tap a zone to trigger it ----------
+
+let dragging = false;
+let lastAngle = 0;
+let accumAngle = 0;
+let totalMove = 0;
+let downX = 0, downY = 0;
+
+function angleFromCenter(clientX, clientY) {
+  const rect = wheelEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI);
+}
+
+function zoneFromPoint(clientX, clientY) {
+  const rect = wheelEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const dx = clientX - cx, dy = clientY - cy;
+  if (Math.hypot(dx, dy) < rect.width * 0.21) return 'select'; // center button radius (42% diameter)
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+  if (angle > -135 && angle <= -45) return 'menu';
+  if (angle > 45 && angle <= 135) return 'play';
+  if (angle > -45 && angle <= 45) return 'next';
+  return 'prev';
+}
+
+wheelEl.addEventListener('pointerdown', (e) => {
+  wheelEl.setPointerCapture(e.pointerId);
+  dragging = true;
+  totalMove = 0;
+  downX = e.clientX;
+  downY = e.clientY;
+  lastAngle = angleFromCenter(e.clientX, e.clientY);
+  accumAngle = 0;
+  e.preventDefault();
+});
+
+wheelEl.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  totalMove += Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY);
+  const angle = angleFromCenter(e.clientX, e.clientY);
+  let delta = angle - lastAngle;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  accumAngle += delta;
+  lastAngle = angle;
+  while (accumAngle >= DEGREES_PER_STEP) { moveCursor(1); accumAngle -= DEGREES_PER_STEP; }
+  while (accumAngle <= -DEGREES_PER_STEP) { moveCursor(-1); accumAngle += DEGREES_PER_STEP; }
+});
+
+wheelEl.addEventListener('pointerup', (e) => {
+  dragging = false;
+  if (totalMove >= 10) return; // was a drag, not a tap
+  const zone = zoneFromPoint(e.clientX, e.clientY);
+  if (zone === 'select') activateCursor();
+  else if (zone === 'menu') doMenu();
+  else if (zone === 'play') togglePlayPause();
+  else if (zone === 'prev') playAtIndex(currentFileIndex - 1);
+  else if (zone === 'next') playAtIndex(currentFileIndex + 1);
+});
+wheelEl.addEventListener('pointercancel', () => { dragging = false; });
 
 fetch('files.json')
   .then(res => res.json())

@@ -52,8 +52,6 @@ body.light #screen { border-color: #bbb; }
 body.light #screen-header { border-bottom-color: #bbb; }
 
 #screen-title { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#battery { font-size: 0.85rem; opacity: 0.7; }
-
 #theme-btn {
   background: none;
   border: none;
@@ -160,6 +158,11 @@ body.light .row:active { background: #e0e0e0; }
 .row.playing .subpath { opacity: 0.8; }
 .row.playing .chevron { opacity: 0.7; }
 
+.row.cursor { background: #333; border-left: 3px solid #eee; padding-left: calc(0.75em - 3px); }
+body.light .row.cursor { background: #e8e8e8; border-left-color: rgb(0, 120, 140); }
+.row.cursor.playing { background: #3a3a3a; }
+body.light .row.cursor.playing { background: #dcecee; }
+
 #mini-status {
   flex: none;
   display: block;
@@ -228,29 +231,31 @@ body.light #mini-status { border-top-color: #bbb; }
   margin: 0 auto;
   border-radius: 50%;
   border: 1px solid #444;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 body.light #wheel { border-color: #bbb; }
 
 .wheel-btn {
   position: absolute;
-  background: none;
-  border: none;
   color: inherit;
   font-family: monospace;
   font-weight: 700;
   letter-spacing: 0.04em;
   opacity: 0.7;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none; /* the parent #wheel handles all gestures/taps */
 }
-.wheel-btn:hover { opacity: 1; }
+
+.wheel-btn .icon { width: 22px; height: 22px; display: block; }
 
 .wheel-top { top: 6%; left: 0; right: 0; height: 24%; font-size: 0.75rem; }
-.wheel-bottom { bottom: 6%; left: 0; right: 0; height: 24%; font-size: 1.4rem; }
-.wheel-left { left: 5%; top: 0; bottom: 0; width: 24%; font-size: 1.3rem; }
-.wheel-right { right: 5%; top: 0; bottom: 0; width: 24%; font-size: 1.3rem; }
+.wheel-bottom { bottom: 6%; left: 0; right: 0; height: 24%; }
+.wheel-left { left: 5%; top: 0; bottom: 0; width: 24%; }
+.wheel-right { right: 5%; top: 0; bottom: 0; width: 24%; }
 
 #wheel-select {
   position: absolute;
@@ -260,7 +265,9 @@ body.light #wheel { border-color: #bbb; }
   width: 42%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid #444;
   color: inherit;
   font-family: monospace;
@@ -268,7 +275,6 @@ body.light #wheel { border-color: #bbb; }
   font-weight: 700;
   letter-spacing: 0.06em;
   opacity: 0.75;
-  cursor: pointer;
+  pointer-events: none;
 }
-#wheel-select:hover { opacity: 1; }
 body.light #wheel-select { border-color: #bbb; }

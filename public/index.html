@@ -18,7 +18,6 @@
       <div id="screen-header">
         <button id="theme-btn" type="button">light</button>
         <span id="screen-title">Music Box</span>
-        <span id="battery">🔋</span>
       </div>
 
       <div id="screen-content">
@@ -43,12 +42,18 @@
       <button id="mini-status" type="button">Nothing playing</button>
     </div>
 
-    <div id="wheel">
-      <button id="wheel-menu" class="wheel-btn wheel-top" type="button">MENU</button>
-      <button id="wheel-prev" class="wheel-btn wheel-left" type="button" aria-label="Previous">⏮</button>
-      <button id="wheel-next" class="wheel-btn wheel-right" type="button" aria-label="Next">⏭</button>
-      <button id="wheel-play" class="wheel-btn wheel-bottom" type="button" aria-label="Play/Pause">⏯</button>
-      <button id="wheel-select" type="button">SELECT</button>
+    <div id="wheel" role="group" aria-label="Click wheel — drag to scroll, tap Menu, Previous, Next, Play/Pause, or Select">
+      <div id="wheel-menu" class="wheel-btn wheel-top" aria-hidden="true">MENU</div>
+      <div id="wheel-prev" class="wheel-btn wheel-left" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M6 6h2v12H6zM20 6L10 12l10 6z" fill="currentColor"/></svg>
+      </div>
+      <div id="wheel-next" class="wheel-btn wheel-right" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM4 6l10 6-10 6z" fill="currentColor"/></svg>
+      </div>
+      <div id="wheel-play" class="wheel-btn wheel-bottom" aria-hidden="true">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>
+      </div>
+      <div id="wheel-select" aria-hidden="true">SELECT</div>
     </div>
   </div>
 
