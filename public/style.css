@@ -10,6 +10,7 @@ body {
   color: #eeeeee;
   transition: background 0.3s, color 0.3s;
   overflow: hidden;
+  touch-action: manipulation;
 }
 
 body.light { background: #fff; color: rgb(0, 120, 140); }
