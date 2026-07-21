@@ -64,6 +64,16 @@ function setNowPlaying(title, artist) {
   });
 }
 
+// once a track is actually playing (no error, not still loading): banner keeps a generic
+// "Now Playing" indicator, but the full-screen title/artist stay blank (artwork-focused)
+function setPlayingState() {
+  miniStatusTextEl.classList.remove('marquee');
+  miniStatusTextEl.style.removeProperty('--marquee-distance');
+  miniStatusTextEl.textContent = 'Now Playing';
+  npTitleEl.textContent = '';
+  npArtistEl.textContent = '';
+}
+
 function setArtwork(url) {
   if (currentArtworkUrl) URL.revokeObjectURL(currentArtworkUrl);
   currentArtworkUrl = url;
@@ -279,7 +289,7 @@ async function playFile(file, resumeTime = 0) {
   setNowPlaying(`${file.name} — loading…`, '');
   try {
     const url = await streamUrlFor(file);
-    setNowPlaying('', ''); // clear the "loading…" status once ready — track name isn't displayed
+    setPlayingState();
     audio.src = url;
     if (resumeTime > 0) {
       const onLoaded = () => {
