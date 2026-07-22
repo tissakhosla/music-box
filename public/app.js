@@ -16,6 +16,7 @@ const timeDurationEl = document.getElementById('time-duration');
 const nowPlayingViewEl = document.getElementById('nowplaying-view');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
+const npOverlayEl = document.getElementById('np-overlay');
 const wheelEl = document.getElementById('wheel');
 const wheelPlayBtn = document.getElementById('wheel-play');
 const annotatePanelEl = document.getElementById('annotate-panel');
@@ -155,11 +156,22 @@ function setPlayingState(file) {
 function fitArtworkToWrap() {
   if (!artworkEl.naturalWidth || !artworkEl.naturalHeight) return;
   const wrapW = artworkWrapEl.clientWidth;
-  const wrapH = artworkWrapEl.clientHeight;
-  if (!wrapW || !wrapH) return;
+  // #np-overlay (waveform + reserved time-markers space) is a fixed-height sibling
+  // below #artwork-wrap, not part of it — centering the image within just the wrap's
+  // own box therefore sits it above true center of the whole now-playing screen,
+  // leaving more space below the image than above. With align-items: center, giving
+  // the image a margin-top equal to the overlay's own height shifts its visible center
+  // down by exactly half that (the rest of the math is in the margin-box centering
+  // itself) — which is exactly what's needed to rebalance against the full screen
+  // instead of just the wrap. Reserving that same amount off the sizing budget keeps
+  // the now-taller margin box from overflowing the wrap.
+  const overlayH = npOverlayEl.getBoundingClientRect().height;
+  const wrapH = artworkWrapEl.clientHeight - overlayH;
+  if (!wrapW || wrapH <= 0) return;
   const scale = Math.min(wrapW / artworkEl.naturalWidth, wrapH / artworkEl.naturalHeight);
   artworkEl.style.width = `${artworkEl.naturalWidth * scale}px`;
   artworkEl.style.height = `${artworkEl.naturalHeight * scale}px`;
+  artworkEl.style.marginTop = `${overlayH}px`;
 }
 artworkEl.addEventListener('load', fitArtworkToWrap);
 window.addEventListener('resize', fitArtworkToWrap);
