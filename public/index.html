@@ -36,9 +36,6 @@
             <img id="artwork-bg" alt="">
             <img id="artwork" alt="">
           </div>
-          <button id="locate-btn" type="button" aria-label="Show in file browser">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10H3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-          </button>
           <div id="np-overlay">
             <div id="np-title">Nothing playing</div>
             <div id="np-artist"></div>
@@ -52,7 +49,16 @@
         </div>
       </div>
 
-      <button id="mini-status" type="button"><span id="mini-status-text">Nothing playing</span></button>
+      <div id="mini-status">
+        <button id="mini-status-btn" type="button"><span id="mini-status-text">Nothing playing</span></button>
+        <button id="locate-btn" type="button" aria-label="Show in file browser">
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div id="wheel" role="group" aria-label="Click wheel — drag to scroll, tap Menu, Previous, Next, Play/Pause, or Select">

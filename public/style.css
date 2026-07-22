@@ -176,16 +176,22 @@ body {
 
 #mini-status {
   flex: none;
-  display: block;
+  display: flex;
+  align-items: stretch;
   width: 100%;
+  border-top: 1px solid #444;
+}
+
+#mini-status-btn {
+  flex: 1;
+  min-width: 0;
   background: none;
   border: none;
-  border-top: 1px solid #444;
   color: inherit;
   font-family: monospace;
   text-align: left;
   cursor: pointer;
-  padding: 0.4rem 0.6rem;
+  padding: 0.4rem 0.4rem 0.4rem 0.6rem;
   font-size: 0.75rem;
   opacity: 0.85;
   overflow: hidden;
@@ -194,6 +200,21 @@ body {
 
 #mini-status-text { display: inline-block; white-space: nowrap; }
 #mini-status-text.marquee { animation: marquee 7s ease-in-out infinite; }
+
+#locate-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.7rem;
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+#locate-btn:active { opacity: 1; }
+#locate-btn .icon { width: 18px; height: 18px; display: block; }
 
 @keyframes marquee {
   0%, 12% { transform: translateX(0); }
@@ -241,24 +262,6 @@ body {
   transition: opacity 0.25s;
 }
 #artwork-wrap.has-art #artwork { opacity: 1; }
-
-#locate-btn {
-  position: absolute;
-  top: calc(0.8rem + env(safe-area-inset-top));
-  right: 0.8rem;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.4em;
-  height: 2.4em;
-  background: rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  color: #f2f2f2;
-  cursor: pointer;
-}
-#locate-btn .icon { width: 18px; height: 18px; display: block; }
 
 #np-overlay {
   position: absolute;

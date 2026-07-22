@@ -6,7 +6,7 @@ const breadcrumbEl = document.getElementById('breadcrumb');
 const searchEl = document.getElementById('search');
 const screenTitleEl = document.getElementById('screen-title');
 const screenContentEl = document.getElementById('screen-content');
-const miniStatusEl = document.getElementById('mini-status');
+const miniStatusBtnEl = document.getElementById('mini-status-btn');
 const miniStatusTextEl = document.getElementById('mini-status-text');
 const npTitleEl = document.getElementById('np-title');
 const npArtistEl = document.getElementById('np-artist');
@@ -67,8 +67,8 @@ function refreshMarquee() {
   miniStatusTextEl.classList.remove('marquee');
   miniStatusTextEl.style.removeProperty('--marquee-distance');
   requestAnimationFrame(() => {
-    const style = getComputedStyle(miniStatusEl);
-    const available = miniStatusEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const style = getComputedStyle(miniStatusBtnEl);
+    const available = miniStatusBtnEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const overflow = miniStatusTextEl.scrollWidth - available;
     if (overflow > 0) {
       miniStatusTextEl.style.setProperty('--marquee-distance', `-${overflow}px`);
@@ -881,7 +881,7 @@ function doMenu() {
   if (path.length) { path = path.slice(0, -1); render(); }
 }
 
-miniStatusEl.addEventListener('click', () => { if (currentTrackPath) showNowPlaying(); });
+miniStatusBtnEl.addEventListener('click', () => { if (currentTrackPath) showNowPlaying(); });
 
 audio.addEventListener('play', () => { wheelPlayBtn.innerHTML = PAUSE_ICON; });
 audio.addEventListener('pause', () => { wheelPlayBtn.innerHTML = PLAY_ICON; saveResume(); });
