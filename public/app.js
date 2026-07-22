@@ -48,6 +48,7 @@ let pendingResume = null;
 let lastResumeSave = 0;
 let cursorIndex = 0;
 let lastContextKey = null;
+let lastPath = [];
 let currentAnnotation = { note: '', tags: [] };
 let suggestedTagsCache = [];
 let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
@@ -725,15 +726,34 @@ function render() {
   localStorage.setItem('path', JSON.stringify(path));
   const key = searchQuery ? `search:${searchQuery}` : `path:${path.join('/')}`;
   const navigated = key !== lastContextKey;
+
+  // going up a level (Menu, or a breadcrumb tap that jumps back several) should land the
+  // cursor back on the folder you just came out of, not reset to the top of the list —
+  // detected as: still browsing, path got shorter, and the new path is a prefix of the old
+  // one (i.e. we're an ancestor of where we just were, not off on some unrelated folder)
+  let restoreFolderName = null;
+  if (navigated && !searchQuery && path.length < lastPath.length &&
+      lastPath.slice(0, path.length).join('/') === path.join('/')) {
+    restoreFolderName = lastPath[path.length];
+  }
+
   if (navigated) {
     cursorIndex = 0;
     lastContextKey = key;
   }
   searchQuery ? renderSearch() : renderBrowse();
+
+  if (restoreFolderName) {
+    const idx = currentRows.findIndex(r => r.type === 'folder' && r.name === restoreFolderName);
+    if (idx !== -1) cursorIndex = idx;
+  }
+
   highlightCursor();
   // only snap the breadcrumb to the current (rightmost) segment on actual navigation,
   // not on every re-render (e.g. starting playback) — otherwise a manual scroll-back gets undone
   if (navigated) breadcrumbEl.scrollLeft = breadcrumbEl.scrollWidth;
+
+  lastPath = path.slice();
 }
 
 function moveCursor(delta) {
