@@ -262,7 +262,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #101010;
+  /* matches the app background exactly so letterboxing around artwork that
+     doesn't match the container's aspect ratio blends in instead of reading
+     as a visible black bar */
+  background: #141414;
   overflow: hidden;
 }
 #artwork-wrap.loading { animation: artwork-pulse 2.4s ease-in-out infinite; }
