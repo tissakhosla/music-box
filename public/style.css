@@ -182,14 +182,35 @@ body {
   position: absolute;
   inset: 0;
   background: #222;
+  overflow: hidden; /* clips the scaled/blurred backdrop so it can't cause page overflow */
 }
 #artwork-wrap.loading { animation: artwork-pulse 2.4s ease-in-out infinite; }
 @keyframes artwork-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.62; } }
 
-#artwork {
+/* blurred, scaled-up backdrop — fills the screen with the artwork's own colors so the
+   foreground image (which is never cropped) doesn't sit on an awkward flat background
+   when its aspect ratio doesn't match the screen */
+#artwork-bg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: blur(28px) brightness(0.65) saturate(1.15);
+  transform: scale(1.15); /* pushes the blur's own soft edges past the visible area */
+  display: block;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#artwork-wrap.has-art #artwork-bg { opacity: 1; }
+
+/* the real artwork, always shown in full — object-fit: contain never crops it */
+#artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   display: block;
   opacity: 0;
   transition: opacity 0.25s;
