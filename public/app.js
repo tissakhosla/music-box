@@ -4,7 +4,6 @@ const audio = document.getElementById('audio');
 const listingEl = document.getElementById('listing');
 const breadcrumbEl = document.getElementById('breadcrumb');
 const searchEl = document.getElementById('search');
-const screenTitleEl = document.getElementById('screen-title');
 const screenContentEl = document.getElementById('screen-content');
 const miniStatusBtnEl = document.getElementById('mini-status-btn');
 const miniStatusTextEl = document.getElementById('mini-status-text');
@@ -649,8 +648,6 @@ function activate(item, index) {
 }
 
 function renderBrowse() {
-  screenTitleEl.textContent = path.length ? path[path.length - 1] : 'Music Box';
-
   breadcrumbEl.innerHTML = '';
   const crumbs = [{ name: 'Music Box', path: [] }, ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) }))];
   crumbs.forEach((c, i) => {
@@ -689,7 +686,6 @@ function renderBrowse() {
 }
 
 function renderSearch() {
-  screenTitleEl.textContent = 'Search';
   breadcrumbEl.innerHTML = '';
   const q = searchQuery.toLowerCase();
   // match against the full path, not just the filename — a search for "Beethoven" should
