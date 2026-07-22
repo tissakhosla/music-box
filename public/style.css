@@ -279,6 +279,98 @@ body {
 #seek::-moz-range-progress { height: 3px; border-radius: 999px; background: #eee; }
 #seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #eee; border: none; cursor: pointer; }
 
+/* ---------- annotate panel (reorg triage: notes/tags, not music metadata) ---------- */
+
+#annotate-panel {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem 1rem;
+  background: #161616;
+  overflow-y: auto;
+  color: #eee;
+}
+#nowplaying-view.annotating #annotate-panel { display: flex; }
+
+#annotate-path {
+  font-size: 0.65rem;
+  opacity: 0.5;
+  text-align: center;
+  overflow-wrap: break-word;
+}
+
+#annotate-toggles { display: flex; gap: 0.6rem; }
+.annotate-toggle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  background: none;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: inherit;
+  font-family: monospace;
+  font-size: 0.7rem;
+  padding: 0.6em 0.4em;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.annotate-toggle .icon { width: 20px; height: 20px; }
+.annotate-toggle.active { opacity: 1; background: #2a2a2a; }
+#tag-trash-btn.active { border-color: #e05a4e; color: #e88a80; }
+#tag-favorite-btn.active { border-color: #e0c04e; color: #e8d080; }
+
+#annotate-note {
+  width: 100%;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #eee;
+  font-family: monospace;
+  font-size: 16px; /* prevents iOS auto-zoom */
+  padding: 0.5em 0.6em;
+  resize: none;
+}
+
+#annotate-tag-input {
+  width: 100%;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #eee;
+  font-family: monospace;
+  font-size: 16px;
+  padding: 0.5em 0.6em;
+}
+
+#annotate-current-tags, #annotate-suggested-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tag-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 999px;
+  padding: 0.3em 0.7em;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: inherit;
+  cursor: pointer;
+}
+.tag-chip.suggested { opacity: 0.6; }
+.tag-chip .remove { opacity: 0.6; }
+
+#annotate-suggested-label { font-size: 0.65rem; opacity: 0.5; margin-top: 0.3rem; }
+
 /* ---------- click wheel ---------- */
 
 #wheel {

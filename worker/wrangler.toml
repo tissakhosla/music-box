@@ -1,3 +1,7 @@
 name = "music-box-api"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "ANNOTATIONS"
+id = "02895c5f23954ef788fc4de8153e87fe"

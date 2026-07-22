@@ -18,6 +18,14 @@ const artworkEl = document.getElementById('artwork');
 const artworkBgEl = document.getElementById('artwork-bg');
 const wheelEl = document.getElementById('wheel');
 const wheelPlayBtn = document.getElementById('wheel-play');
+const nowPlayingViewEl = document.getElementById('nowplaying-view');
+const annotatePathEl = document.getElementById('annotate-path');
+const tagTrashBtn = document.getElementById('tag-trash-btn');
+const tagFavoriteBtn = document.getElementById('tag-favorite-btn');
+const annotateNoteEl = document.getElementById('annotate-note');
+const annotateTagInputEl = document.getElementById('annotate-tag-input');
+const annotateCurrentTagsEl = document.getElementById('annotate-current-tags');
+const annotateSuggestedTagsEl = document.getElementById('annotate-suggested-tags');
 
 const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
@@ -38,6 +46,9 @@ let pendingResume = null;
 let lastResumeSave = 0;
 let cursorIndex = 0;
 let lastContextKey = null;
+let currentAnnotation = { note: '', tags: [] };
+let suggestedTagsCache = [];
+let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
 
 function fmtTime(sec) {
   if (!isFinite(sec)) return '0:00';
@@ -434,6 +445,127 @@ async function fetchMetadata(file) {
 function showNowPlaying() { screenContentEl.classList.add('showing-nowplaying'); }
 function showBrowse() { screenContentEl.classList.remove('showing-nowplaying'); }
 
+// ---------- annotate panel: reorg-triage notes/tags for the current track, not music metadata ----------
+
+function toggleAnnotatePanel() {
+  nowPlayingViewEl.classList.contains('annotating') ? closeAnnotatePanel() : openAnnotatePanel();
+}
+
+function closeAnnotatePanel() {
+  nowPlayingViewEl.classList.remove('annotating');
+}
+
+async function openAnnotatePanel() {
+  if (!currentTrackPath) return;
+  nowPlayingViewEl.classList.add('annotating');
+  annotatePathEl.textContent = currentTrackPath;
+
+  const token = ++annotationLoadToken;
+  currentAnnotation = { note: '', tags: [] };
+  renderAnnotateUI([]); // clear stale UI immediately, suggestions fill in once fetched
+
+  try {
+    const res = await fetch(`${WORKER_URL}/annotation?path=${encodeURIComponent(currentTrackPath)}`);
+    const data = await res.json();
+    if (token !== annotationLoadToken) return; // a newer open/track-change happened, discard
+    currentAnnotation = { note: data.note || '', tags: Array.isArray(data.tags) ? data.tags : [] };
+  } catch (e) {
+    // leave currentAnnotation blank — worth seeing this fail loudly during early use
+    if (token === annotationLoadToken) annotatePathEl.textContent = `${currentTrackPath} (failed to load: ${e.message})`;
+  }
+
+  suggestedTagsCache = [];
+  try {
+    const res = await fetch(`${WORKER_URL}/annotations`);
+    const all = await res.json();
+    const counts = {};
+    Object.values(all).forEach(rec => (rec.tags || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+    suggestedTagsCache = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  } catch (e) {
+    // suggestions are a nicety — a failure here shouldn't block editing this file's own tags
+  }
+  if (token !== annotationLoadToken) return;
+  renderAnnotateUI(suggestedTagsCache);
+}
+
+function renderAnnotateUI(suggestedTags) {
+  annotateNoteEl.value = currentAnnotation.note;
+  tagTrashBtn.classList.toggle('active', currentAnnotation.tags.includes('trash'));
+  tagFavoriteBtn.classList.toggle('active', currentAnnotation.tags.includes('favorite'));
+
+  annotateCurrentTagsEl.innerHTML = '';
+  currentAnnotation.tags.forEach(tag => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tag-chip';
+    const label = document.createElement('span');
+    label.textContent = tag;
+    const remove = document.createElement('span');
+    remove.className = 'remove';
+    remove.textContent = '×';
+    chip.append(label, remove);
+    chip.addEventListener('click', () => removeTag(tag));
+    annotateCurrentTagsEl.appendChild(chip);
+  });
+
+  annotateSuggestedTagsEl.innerHTML = '';
+  suggestedTags.filter(t => !currentAnnotation.tags.includes(t)).forEach(tag => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tag-chip suggested';
+    const label = document.createElement('span');
+    label.textContent = tag;
+    chip.appendChild(label);
+    chip.addEventListener('click', () => addTag(tag));
+    annotateSuggestedTagsEl.appendChild(chip);
+  });
+}
+
+function addTag(rawTag) {
+  const tag = rawTag.trim().toLowerCase();
+  if (!tag || currentAnnotation.tags.includes(tag)) return;
+  currentAnnotation.tags.push(tag);
+  if (!suggestedTagsCache.includes(tag)) suggestedTagsCache.push(tag);
+  renderAnnotateUI(suggestedTagsCache);
+  saveAnnotation();
+}
+
+function removeTag(tag) {
+  currentAnnotation.tags = currentAnnotation.tags.filter(t => t !== tag);
+  renderAnnotateUI(suggestedTagsCache);
+  saveAnnotation();
+}
+
+async function saveAnnotation() {
+  if (!currentTrackPath) return;
+  try {
+    await fetch(`${WORKER_URL}/annotation`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentTrackPath, note: currentAnnotation.note, tags: currentAnnotation.tags }),
+    });
+  } catch (e) {
+    annotatePathEl.textContent = `${currentTrackPath} (save failed: ${e.message})`;
+  }
+}
+
+tagTrashBtn.addEventListener('click', () => {
+  currentAnnotation.tags.includes('trash') ? removeTag('trash') : addTag('trash');
+});
+tagFavoriteBtn.addEventListener('click', () => {
+  currentAnnotation.tags.includes('favorite') ? removeTag('favorite') : addTag('favorite');
+});
+annotateNoteEl.addEventListener('blur', () => {
+  currentAnnotation.note = annotateNoteEl.value;
+  saveAnnotation();
+});
+annotateTagInputEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  addTag(annotateTagInputEl.value);
+  annotateTagInputEl.value = '';
+});
+
 function flatten(node, acc) {
   node.children.forEach(child => {
     if (child.type === 'folder') flatten(child, acc);
@@ -609,6 +741,7 @@ function saveResume() {
 
 async function playFile(file, resumeTime = 0) {
   showNowPlaying();
+  closeAnnotatePanel();
   pendingResume = null;
   currentTrackPath = file.path;
   currentFileIndex = currentFiles.findIndex(f => f.path === file.path);
@@ -653,6 +786,7 @@ function togglePlayPause() {
 }
 
 function doMenu() {
+  if (nowPlayingViewEl.classList.contains('annotating')) { closeAnnotatePanel(); return; }
   if (screenContentEl.classList.contains('showing-nowplaying')) { showBrowse(); return; }
   if (searchQuery) { searchQuery = ''; searchEl.value = ''; render(); return; }
   if (path.length) { path = path.slice(0, -1); render(); }
@@ -745,7 +879,10 @@ wheelEl.addEventListener('pointerup', (e) => {
   dragging = false;
   if (totalMove >= 10) return; // was a drag, not a tap
   const zone = zoneFromPoint(e.clientX, e.clientY);
-  if (zone === 'select') { if (!screenContentEl.classList.contains('showing-nowplaying')) activateCursor(); }
+  if (zone === 'select') {
+    if (screenContentEl.classList.contains('showing-nowplaying')) { toggleAnnotatePanel(); }
+    else { activateCursor(); }
+  }
   else if (zone === 'menu') doMenu();
   else if (zone === 'play') togglePlayPause();
   else if (zone === 'prev') playAtIndex(currentFileIndex - 1);

@@ -47,8 +47,34 @@ async function getStreamUrl(env, path) {
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
   };
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+  });
+}
+
+// Reorg-triage annotations (note + freeform tags, e.g. "trash", "favorite", "mjg",
+// "rename") — separate from actual music metadata, not edits to the files themselves.
+// Stored in KV keyed by Dropbox path, meant to be reviewed later on your own machine
+// (GET /annotations) rather than acted on automatically from here.
+async function getAllAnnotations(kv) {
+  const result = {};
+  let cursor;
+  do {
+    const list = await kv.list({ cursor });
+    for (const key of list.keys) {
+      const raw = await kv.get(key.name);
+      if (raw) result[key.name] = JSON.parse(raw);
+    }
+    cursor = list.list_complete ? undefined : list.cursor;
+  } while (cursor);
+  return result;
 }
 
 export default {
@@ -58,28 +84,52 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (url.pathname !== '/stream') {
-      return new Response('Not found', { status: 404, headers: corsHeaders() });
+
+    if (url.pathname === '/stream') {
+      const path = url.searchParams.get('path');
+      if (!path) return json({ error: 'Missing path' }, 400);
+      try {
+        const link = await getStreamUrl(env, path);
+        return json({ url: link });
+      } catch (e) {
+        return json({ error: e.message }, 502);
+      }
     }
 
-    const path = url.searchParams.get('path');
-    if (!path) {
-      return new Response(JSON.stringify({ error: 'Missing path' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      });
+    if (url.pathname === '/annotation') {
+      const path = url.searchParams.get('path');
+      if (request.method === 'GET') {
+        if (!path) return json({ error: 'Missing path' }, 400);
+        const raw = await env.ANNOTATIONS.get(path);
+        return json(raw ? JSON.parse(raw) : {});
+      }
+      if (request.method === 'PUT') {
+        let body;
+        try {
+          body = await request.json();
+        } catch (e) {
+          return json({ error: 'Invalid JSON body' }, 400);
+        }
+        if (!body.path) return json({ error: 'Missing path' }, 400);
+        const note = typeof body.note === 'string' ? body.note : '';
+        const tags = Array.isArray(body.tags) ? body.tags.filter(t => typeof t === 'string' && t) : [];
+        if (!note && tags.length === 0) {
+          // nothing left to say about this file — remove the record entirely
+          await env.ANNOTATIONS.delete(body.path);
+          return json({ note: '', tags: [] });
+        }
+        const record = { note, tags, updatedAt: Date.now() };
+        await env.ANNOTATIONS.put(body.path, JSON.stringify(record));
+        return json(record);
+      }
+      return json({ error: 'Method not allowed' }, 405);
     }
 
-    try {
-      const link = await getStreamUrl(env, path);
-      return new Response(JSON.stringify({ url: link }), {
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-      });
+    if (url.pathname === '/annotations' && request.method === 'GET') {
+      const all = await getAllAnnotations(env.ANNOTATIONS);
+      return json(all);
     }
+
+    return json({ error: 'Not found' }, 404);
   },
 };
