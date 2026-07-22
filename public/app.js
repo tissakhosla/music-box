@@ -36,7 +36,7 @@ const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM
 const SEARCH_LIMIT = 300;
 const RESUME_SAVE_INTERVAL_MS = 5000;
 const DEGREES_PER_STEP = 20; // wheel drag distance per list move, mimics the physical click wheel's detents
-const WAVEFORM_BARS = 50;
+const WAVEFORM_BARS = 100;
 
 let root = null;
 let allFiles = [];
@@ -901,7 +901,6 @@ async function playFile(file, resumeTime = 0) {
   setArtwork(null);
   setNowPlaying(`${file.name} — loading…`, '');
   resetWaveformUI();
-  loadWaveformForCurrentTrack(file.path);
   try {
     const url = await streamUrlFor(file);
     setPlayingState(file);
@@ -913,8 +912,12 @@ async function playFile(file, resumeTime = 0) {
       };
       audio.addEventListener('loadedmetadata', onLoaded);
     }
+    // playback URL is already resolved and play() has fired — only now do the artwork
+    // and waveform get their own separate temp-link fetches, so they never compete with
+    // the actual audio stream for bandwidth/worker time on the way to first sound
     audio.play();
     fetchMetadata(file);
+    loadWaveformForCurrentTrack(file.path);
   } catch (e) {
     setNowPlaying(`${file.name} — failed to load (${e.message})`, '');
     audio.pause();

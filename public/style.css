@@ -321,7 +321,7 @@ body {
   justify-content: space-between;
 }
 .wf-bar {
-  width: 3px;
+  width: 2px;
   min-height: 2px;
   border-radius: 1px;
   background: rgba(238, 238, 238, 0.25);
