@@ -16,7 +16,6 @@ const timeDurationEl = document.getElementById('time-duration');
 const nowPlayingViewEl = document.getElementById('nowplaying-view');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
-const artworkBgEl = document.getElementById('artwork-bg');
 const wheelEl = document.getElementById('wheel');
 const wheelPlayBtn = document.getElementById('wheel-play');
 const annotatePanelEl = document.getElementById('annotate-panel');
@@ -124,11 +123,9 @@ function setArtwork(url) {
   artworkWrapEl.classList.remove('loading');
   if (url) {
     artworkEl.src = url;
-    artworkBgEl.src = url;
     artworkWrapEl.classList.add('has-art');
   } else {
     artworkEl.removeAttribute('src');
-    artworkBgEl.removeAttribute('src');
     artworkWrapEl.classList.remove('has-art');
   }
 }

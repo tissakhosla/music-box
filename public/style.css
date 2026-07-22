@@ -60,7 +60,7 @@ body {
   -webkit-user-select: none;
 }
 #screen-content.showing-nowplaying #browse-view { display: none; }
-#screen-content.showing-nowplaying #nowplaying-view { display: block; }
+#screen-content.showing-nowplaying #nowplaying-view { display: flex; }
 
 #browse-toolbar {
   flex: none;
@@ -255,38 +255,23 @@ body {
 /* ---------- now playing screen ---------- */
 
 #artwork-wrap {
-  position: absolute;
-  inset: 0;
-  background: #222;
-  overflow: hidden; /* clips the scaled/blurred backdrop so it can't cause page overflow */
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #161616;
+  overflow: hidden;
 }
 #artwork-wrap.loading { animation: artwork-pulse 2.4s ease-in-out infinite; }
 @keyframes artwork-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.62; } }
 
-/* blurred, scaled-up backdrop — fills the screen with the artwork's own colors so the
-   foreground image (which is never cropped) doesn't sit on an awkward flat background
-   when its aspect ratio doesn't match the screen */
-#artwork-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(28px) brightness(0.65) saturate(1.15);
-  transform: scale(1.15); /* pushes the blur's own soft edges past the visible area */
-  display: block;
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-#artwork-wrap.has-art #artwork-bg { opacity: 1; }
-
-/* the real artwork, always shown in full — object-fit: contain never crops it */
+/* centered as-is, letterboxed with even margins by its own aspect ratio — never cropped */
 #artwork {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
   display: block;
   opacity: 0;
   transition: opacity 0.25s;
@@ -294,12 +279,9 @@ body {
 #artwork-wrap.has-art #artwork { opacity: 1; }
 
 #np-overlay {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 2.2rem 1rem 1rem;
-  background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.6) 55%, transparent 100%);
+  flex: none;
+  width: 100%;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
