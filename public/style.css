@@ -51,7 +51,14 @@ body {
   min-height: 0;
 }
 
-#nowplaying-view { display: none; overflow: hidden; }
+#nowplaying-view {
+  display: none;
+  overflow: hidden;
+  /* hold-and-slide-to-scrub gesture surface — suppress native scroll/zoom so drags are ours */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
 #screen-content.showing-nowplaying #browse-view { display: none; }
 #screen-content.showing-nowplaying #nowplaying-view { display: block; }
 
@@ -180,6 +187,29 @@ body {
   right: 0;
   height: 2px;
   background: linear-gradient(to right, #eee 0%, #eee var(--progress, 0%), #444 var(--progress, 0%), #444 100%);
+  transition: height 0.15s ease;
+}
+/* while dragging on the now-playing screen, the border-scrub-bar grows a
+   visible play-position cursor instead of a separate on-screen slider */
+#mini-status.scrubbing::before { height: 5px; }
+
+#mini-progress-thumb {
+  position: absolute;
+  top: 0;
+  left: var(--progress, 0%);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #eee;
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+#mini-status.scrubbing #mini-progress-thumb {
+  transform: translate(-50%, -50%) scale(5.5);
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(238, 238, 238, 0.7);
 }
 
 #mini-status-btn {
@@ -289,41 +319,6 @@ body {
   opacity: 0.75;
   overflow-wrap: break-word;
 }
-
-#np-seek-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.65rem;
-  opacity: 0.9;
-}
-#seek {
-  -webkit-appearance: none;
-  appearance: none;
-  flex: 1;
-  height: 24px; /* touch target, actual visible track is thinner via the pseudo-elements below */
-  background: transparent;
-  outline: none;
-  margin: 0;
-}
-#seek::-webkit-slider-runnable-track {
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(to right, #eee 0%, #eee var(--progress, 0%), #444 var(--progress, 0%), #444 100%);
-}
-#seek::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #eee;
-  margin-top: -4.5px;
-  cursor: pointer;
-}
-#seek::-moz-range-track { height: 3px; border-radius: 999px; background: #444; }
-#seek::-moz-range-progress { height: 3px; border-radius: 999px; background: #eee; }
-#seek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #eee; border: none; cursor: pointer; }
 
 /* ---------- annotate panel (reorg triage: notes/tags, not music metadata) ---------- */
 

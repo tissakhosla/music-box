@@ -5,13 +5,12 @@ const listingEl = document.getElementById('listing');
 const breadcrumbEl = document.getElementById('breadcrumb');
 const searchEl = document.getElementById('search');
 const screenContentEl = document.getElementById('screen-content');
+const miniStatusEl = document.getElementById('mini-status');
 const miniStatusBtnEl = document.getElementById('mini-status-btn');
 const miniStatusTextEl = document.getElementById('mini-status-text');
 const npTitleEl = document.getElementById('np-title');
 const npArtistEl = document.getElementById('np-artist');
-const seekEl = document.getElementById('seek');
-const timeCurrentEl = document.getElementById('time-current');
-const timeDurationEl = document.getElementById('time-duration');
+const nowPlayingViewEl = document.getElementById('nowplaying-view');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
 const artworkBgEl = document.getElementById('artwork-bg');
@@ -54,13 +53,6 @@ let shuffleMode = false;
 let currentAnnotation = { note: '', tags: [] };
 let suggestedTagsCache = [];
 let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
-
-function fmtTime(sec) {
-  if (!isFinite(sec)) return '0:00';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
 
 function refreshMarquee() {
   miniStatusTextEl.classList.remove('marquee');
@@ -885,22 +877,46 @@ audio.addEventListener('ended', () => playAtIndex(currentFileIndex + 1));
 audio.addEventListener('timeupdate', () => {
   if (!isFinite(audio.duration)) return;
   const pct = (audio.currentTime / audio.duration) * 100;
-  seekEl.value = pct;
   document.documentElement.style.setProperty('--progress', `${pct}%`);
-  timeCurrentEl.textContent = fmtTime(audio.currentTime);
-  timeDurationEl.textContent = fmtTime(audio.duration);
   const now = Date.now();
   if (now - lastResumeSave > RESUME_SAVE_INTERVAL_MS) {
     lastResumeSave = now;
     saveResume();
   }
 });
-seekEl.addEventListener('input', () => {
-  if (!isFinite(audio.duration)) return;
-  audio.currentTime = (seekEl.value / 100) * audio.duration;
-  document.documentElement.style.setProperty('--progress', `${seekEl.value}%`);
-});
 window.addEventListener('pagehide', saveResume);
+
+// ---------- hold-and-slide-to-scrub: drag anywhere on the now playing screen to seek ----------
+
+let scrubbing = false;
+
+function scrubToClientX(clientX) {
+  if (!isFinite(audio.duration)) return;
+  const rect = nowPlayingViewEl.getBoundingClientRect();
+  const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  audio.currentTime = frac * audio.duration;
+  document.documentElement.style.setProperty('--progress', `${frac * 100}%`);
+}
+
+nowPlayingViewEl.addEventListener('pointerdown', (e) => {
+  if (!isFinite(audio.duration)) return;
+  nowPlayingViewEl.setPointerCapture(e.pointerId);
+  scrubbing = true;
+  miniStatusEl.classList.add('scrubbing');
+  scrubToClientX(e.clientX);
+  e.preventDefault();
+});
+nowPlayingViewEl.addEventListener('pointermove', (e) => {
+  if (!scrubbing) return;
+  scrubToClientX(e.clientX);
+});
+function endScrub() {
+  if (!scrubbing) return;
+  scrubbing = false;
+  miniStatusEl.classList.remove('scrubbing');
+}
+nowPlayingViewEl.addEventListener('pointerup', endScrub);
+nowPlayingViewEl.addEventListener('pointercancel', endScrub);
 
 searchEl.addEventListener('input', () => {
   searchQuery = searchEl.value.trim();
