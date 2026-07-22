@@ -94,66 +94,157 @@ function setArtwork(url) {
   }
 }
 
+// Minimal ID3v2.2/2.3/2.4 tag reader using fetch()+ArrayBuffer only — replaces jsmediatags,
+// which relied on the legacy xhr.overrideMimeType('text/plain; charset=x-user-defined')
+// technique for binary XHR (pre-dating responseType='arraybuffer'). Confirmed via a real
+// iPhone that technique fails outright on iOS WebKit ("Generic XHR error") in both Safari
+// and Chrome for iOS (same engine), while working fine on desktop Chrome. fetch()+ArrayBuffer
+// is universally supported and doesn't rely on any legacy binary-XHR hack.
+//
+// Only handles MP3/ID3v2 for now — M4A and FLAC tracks fall back to filename-only, same as
+// untagged files. ID3v2 covers the largest slice of this library (mp3 is the single biggest
+// format by file count).
+async function readId3v2(url) {
+  const headerRes = await fetch(url, { headers: { Range: 'bytes=0-9' } });
+  if (!headerRes.ok) throw new Error(`header fetch failed: ${headerRes.status}`);
+  const headerBuf = new Uint8Array(await headerRes.arrayBuffer());
+  if (headerBuf.length < 10 || headerBuf[0] !== 0x49 || headerBuf[1] !== 0x44 || headerBuf[2] !== 0x33) {
+    return null; // no "ID3" signature
+  }
+  const majorVersion = headerBuf[3];
+  const flags = headerBuf[5];
+  const tagSize = ((headerBuf[6] & 0x7f) << 21) | ((headerBuf[7] & 0x7f) << 14) | ((headerBuf[8] & 0x7f) << 7) | (headerBuf[9] & 0x7f);
+  const extendedHeaderPresent = !!(flags & 0x40);
+
+  const totalSize = 10 + tagSize;
+  const bodyRes = await fetch(url, { headers: { Range: `bytes=0-${totalSize - 1}` } });
+  if (!bodyRes.ok) throw new Error(`tag fetch failed: ${bodyRes.status}`);
+  const buf = new Uint8Array(await bodyRes.arrayBuffer());
+
+  let offset = 10;
+  if (extendedHeaderPresent) {
+    const extSize = majorVersion >= 4
+      ? ((buf[offset] & 0x7f) << 21) | ((buf[offset+1] & 0x7f) << 14) | ((buf[offset+2] & 0x7f) << 7) | (buf[offset+3] & 0x7f)
+      : (buf[offset] << 24) | (buf[offset+1] << 16) | (buf[offset+2] << 8) | buf[offset+3];
+    offset += (majorVersion >= 4 ? extSize : extSize + 4);
+  }
+
+  const result = {};
+  const isV22 = majorVersion === 2;
+  const frameIdLen = isV22 ? 3 : 4;
+  const frameHeaderLen = isV22 ? 6 : 10;
+
+  while (offset + frameHeaderLen <= buf.length) {
+    const frameId = String.fromCharCode(...buf.slice(offset, offset + frameIdLen));
+    if (!frameId || frameId.charCodeAt(0) === 0) break; // padding reached
+
+    let frameSize;
+    if (isV22) {
+      frameSize = (buf[offset+3] << 16) | (buf[offset+4] << 8) | buf[offset+5];
+    } else if (majorVersion >= 4) {
+      frameSize = ((buf[offset+4] & 0x7f) << 21) | ((buf[offset+5] & 0x7f) << 14) | ((buf[offset+6] & 0x7f) << 7) | (buf[offset+7] & 0x7f);
+    } else {
+      frameSize = (buf[offset+4] << 24) | (buf[offset+5] << 16) | (buf[offset+6] << 8) | buf[offset+7];
+    }
+
+    const frameDataStart = offset + frameHeaderLen;
+    const frameDataEnd = frameDataStart + frameSize;
+    if (frameSize <= 0 || frameDataEnd > buf.length) break;
+    const frameData = buf.slice(frameDataStart, frameDataEnd);
+
+    if (frameId === 'TIT2' || frameId === 'TT2') result.title = decodeId3Text(frameData);
+    else if (frameId === 'TPE1' || frameId === 'TP1') result.artist = decodeId3Text(frameData);
+    else if (frameId === 'APIC' || frameId === 'PIC') result.picture = decodeApicFrame(frameData, isV22);
+
+    offset = frameDataEnd;
+  }
+
+  return result;
+}
+
+function decodeId3Text(frameData) {
+  const encoding = frameData[0];
+  const textBytes = frameData.slice(1);
+  let text;
+  if (encoding === 0) text = new TextDecoder('iso-8859-1').decode(textBytes);
+  else if (encoding === 1) text = new TextDecoder('utf-16').decode(textBytes);
+  else if (encoding === 2) text = new TextDecoder('utf-16be').decode(textBytes);
+  else text = new TextDecoder('utf-8').decode(textBytes);
+  return text.replace(/\0+$/, '').trim();
+}
+
+function decodeApicFrame(frameData, isV22) {
+  let offset = 0;
+  const encoding = frameData[offset]; offset += 1;
+  let mime;
+  if (isV22) {
+    const fmt = String.fromCharCode(frameData[offset], frameData[offset+1], frameData[offset+2]);
+    offset += 3;
+    mime = fmt.toUpperCase() === 'PNG' ? 'image/png' : 'image/jpeg';
+  } else {
+    let end = offset;
+    while (end < frameData.length && frameData[end] !== 0) end++;
+    mime = new TextDecoder('iso-8859-1').decode(frameData.slice(offset, end)) || 'image/jpeg';
+    offset = end + 1;
+  }
+  offset += 1; // picture type byte
+  if (encoding === 1 || encoding === 2) {
+    let end = offset;
+    while (end + 1 < frameData.length && !(frameData[end] === 0 && frameData[end+1] === 0)) end += 2;
+    offset = end + 2;
+  } else {
+    let end = offset;
+    while (end < frameData.length && frameData[end] !== 0) end++;
+    offset = end + 1;
+  }
+  return { format: mime, data: frameData.slice(offset) };
+}
+
 // TEMPORARY diagnostic: surfaces the actual error text in the banner instead of silently
 // clearing artwork, since we can't get real console output from an iPhone without a Mac.
-// Remove once the underlying WebKit issue is identified.
+// Remove once confirmed solid across a few real-device tests.
 function showArtworkDebug(msg) {
   artworkWrapEl.classList.remove('loading');
   setBannerText(`[artwork: ${msg}]`);
 }
 
 async function fetchMetadata(file) {
-  if (!window.jsmediatags) { showArtworkDebug('jsmediatags not loaded'); return; }
   artworkWrapEl.classList.add('loading');
 
-  const timeoutId = setTimeout(() => {
-    if (currentTrackPath === file.path) showArtworkDebug('timed out after 20s, no callback fired');
-  }, 20000);
-
   // fetch a separate temp link rather than reusing the one <audio> is actively streaming
-  // from — avoids two concurrent different-Range requests to the exact same URL, which
-  // some WebKit versions handle unreliably
+  // from — avoids two concurrent different-Range requests to the exact same URL
   let metaUrl;
   try {
     metaUrl = await streamUrlFor(file);
   } catch (e) {
-    clearTimeout(timeoutId);
     showArtworkDebug(`stream url fetch failed: ${e.message}`);
     return;
   }
-  if (currentTrackPath !== file.path) { clearTimeout(timeoutId); artworkWrapEl.classList.remove('loading'); return; }
+  if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
 
-  window.jsmediatags.read(metaUrl, {
-    onSuccess: (tag) => {
-      clearTimeout(timeoutId);
-      if (currentTrackPath !== file.path) return;
-      try {
-        const t = tag.tags || {};
-        if (t.title || t.artist) {
-          setBannerText(t.artist ? `${t.title || file.name} — ${t.artist}` : t.title);
-        }
-        if (t.picture) {
-          const { data, format } = t.picture;
-          const blob = new Blob([new Uint8Array(data)], { type: format });
-          // dataURL via FileReader instead of URL.createObjectURL — object URLs for <img>
-          // have a history of unreliable rendering on iOS Safari, dataURLs don't have that issue
-          const reader = new FileReader();
-          reader.onload = () => { if (currentTrackPath === file.path) setArtwork(reader.result); };
-          reader.onerror = () => showArtworkDebug(`FileReader error: ${reader.error && reader.error.message}`);
-          reader.readAsDataURL(blob);
-        } else {
-          setArtwork(null);
-        }
-      } catch (e) {
-        showArtworkDebug(`onSuccess threw: ${e.message}`);
-      }
-    },
-    onError: (error) => {
-      clearTimeout(timeoutId);
-      if (currentTrackPath !== file.path) return;
-      showArtworkDebug(`jsmediatags error: ${(error && (error.info || error.type || JSON.stringify(error))) || 'unknown'}`);
-    },
-  });
+  let tags;
+  try {
+    tags = await readId3v2(metaUrl);
+  } catch (e) {
+    if (currentTrackPath === file.path) showArtworkDebug(`ID3 parse failed: ${e.message}`);
+    return;
+  }
+  if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
+
+  if (!tags) { setArtwork(null); return; }
+
+  if (tags.title || tags.artist) {
+    setBannerText(tags.artist ? `${tags.title || file.name} — ${tags.artist}` : tags.title);
+  }
+  if (tags.picture) {
+    const blob = new Blob([tags.picture.data], { type: tags.picture.format });
+    const reader = new FileReader();
+    reader.onload = () => { if (currentTrackPath === file.path) setArtwork(reader.result); };
+    reader.onerror = () => showArtworkDebug(`FileReader error: ${reader.error && reader.error.message}`);
+    reader.readAsDataURL(blob);
+  } else {
+    setArtwork(null);
+  }
 }
 
 function showNowPlaying() { screenContentEl.classList.add('showing-nowplaying'); }
