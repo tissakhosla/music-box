@@ -886,7 +886,7 @@ audio.addEventListener('timeupdate', () => {
   if (!isFinite(audio.duration)) return;
   const pct = (audio.currentTime / audio.duration) * 100;
   seekEl.value = pct;
-  seekEl.style.setProperty('--progress', `${pct}%`);
+  document.documentElement.style.setProperty('--progress', `${pct}%`);
   timeCurrentEl.textContent = fmtTime(audio.currentTime);
   timeDurationEl.textContent = fmtTime(audio.duration);
   const now = Date.now();
@@ -898,7 +898,7 @@ audio.addEventListener('timeupdate', () => {
 seekEl.addEventListener('input', () => {
   if (!isFinite(audio.duration)) return;
   audio.currentTime = (seekEl.value / 100) * audio.duration;
-  seekEl.style.setProperty('--progress', `${seekEl.value}%`);
+  document.documentElement.style.setProperty('--progress', `${seekEl.value}%`);
 });
 window.addEventListener('pagehide', saveResume);
 

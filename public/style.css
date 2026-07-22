@@ -167,7 +167,19 @@ body {
   display: flex;
   align-items: stretch;
   width: 100%;
-  border-top: 1px solid #444;
+  position: relative;
+}
+/* the "border" above the mini-status bar is the scrub bar itself — a thin
+   progress fill that tracks the currently playing file, visible even while
+   browsing, not just on the Now Playing screen */
+#mini-status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, #eee 0%, #eee var(--progress, 0%), #444 var(--progress, 0%), #444 100%);
 }
 
 #mini-status-btn {
