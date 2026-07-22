@@ -21,7 +21,12 @@
 
       <div id="screen-content">
         <div id="browse-view">
-          <input id="search" type="search" placeholder="Search…" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <div id="browse-toolbar">
+            <input id="search" type="search" placeholder="Search…" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <button id="shuffle-all-btn" type="button" aria-label="Shuffle all">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15L21 21M4 4L9 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
           <div id="breadcrumb"></div>
           <main id="listing"></main>
         </div>
@@ -31,6 +36,9 @@
             <img id="artwork-bg" alt="">
             <img id="artwork" alt="">
           </div>
+          <button id="locate-btn" type="button" aria-label="Show in file browser">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v10H3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
           <div id="np-overlay">
             <div id="np-title">Nothing playing</div>
             <div id="np-artist"></div>

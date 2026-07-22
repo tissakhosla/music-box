@@ -28,6 +28,8 @@ const annotateCurrentTagsEl = document.getElementById('annotate-current-tags');
 const annotateSuggestedTagsEl = document.getElementById('annotate-suggested-tags');
 const annotateCancelBtn = document.getElementById('annotate-cancel-btn');
 const annotateSaveBtn = document.getElementById('annotate-save-btn');
+const shuffleAllBtn = document.getElementById('shuffle-all-btn');
+const locateBtn = document.getElementById('locate-btn');
 
 const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
@@ -49,6 +51,7 @@ let lastResumeSave = 0;
 let cursorIndex = 0;
 let lastContextKey = null;
 let lastPath = [];
+let shuffleMode = false;
 let currentAnnotation = { note: '', tags: [] };
 let suggestedTagsCache = [];
 let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
@@ -642,7 +645,7 @@ function makeRow(child, subpath) {
 function activate(item, index) {
   cursorIndex = index;
   if (item.type === 'folder') { path = [...path, item.name]; render(); }
-  else playFile(item);
+  else { shuffleMode = false; shuffleAllBtn.classList.remove('active'); playFile(item); }
 }
 
 function renderBrowse() {
@@ -666,7 +669,9 @@ function renderBrowse() {
   const node = getNodeAtPath(path);
   listingEl.innerHTML = '';
   currentRows = node.children;
-  currentFiles = node.children.filter(c => c.type === 'file');
+  // while shuffling, Next/Prev stay on the shuffle queue regardless of what folder you're
+  // just looking at — only tapping a specific row (activate()) ends shuffle mode
+  if (!shuffleMode) currentFiles = node.children.filter(c => c.type === 'file');
 
   if (node.children.length === 0) {
     const empty = document.createElement('div');
@@ -691,7 +696,7 @@ function renderSearch() {
   // also surface tracks inside a Beethoven/ folder whose own filenames don't mention it
   const matches = allFiles.filter(f => f.path.toLowerCase().includes(q)).slice(0, SEARCH_LIMIT);
   currentRows = matches;
-  currentFiles = matches;
+  if (!shuffleMode) currentFiles = matches;
 
   const label = document.createElement('span');
   label.className = 'search-label';
@@ -819,6 +824,43 @@ function playAtIndex(i) {
   if (i < 0 || i >= currentFiles.length) return;
   playFile(currentFiles[i]);
 }
+
+function toggleShuffleAll() {
+  if (shuffleMode) {
+    // turn off without touching playback — just stop pinning Next/Prev to the shuffle queue
+    shuffleMode = false;
+    shuffleAllBtn.classList.remove('active');
+    render();
+    return;
+  }
+  if (!allFiles.length) return;
+  const shuffled = allFiles.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  shuffleMode = true;
+  shuffleAllBtn.classList.add('active');
+  currentFiles = shuffled;
+  playFile(shuffled[0]);
+}
+
+// jumps the browser to wherever the currently-playing file actually lives — most useful
+// after shuffling, since the track could be buried anywhere in the whole library
+function locateNowPlaying() {
+  if (!currentTrackPath) return;
+  const slash = currentTrackPath.lastIndexOf('/');
+  path = slash === -1 ? [] : currentTrackPath.slice(0, slash).split('/');
+  searchQuery = '';
+  searchEl.value = '';
+  showBrowse();
+  render();
+  const idx = currentRows.findIndex(r => r.type === 'file' && r.path === currentTrackPath);
+  if (idx !== -1) { cursorIndex = idx; highlightCursor(); }
+}
+
+shuffleAllBtn.addEventListener('click', toggleShuffleAll);
+locateBtn.addEventListener('click', locateNowPlaying);
 
 function togglePlayPause() {
   if (audio.src) {
