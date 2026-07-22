@@ -528,7 +528,9 @@ function renderSearch() {
   screenTitleEl.textContent = 'Search';
   breadcrumbEl.innerHTML = '';
   const q = searchQuery.toLowerCase();
-  const matches = allFiles.filter(f => f.name.toLowerCase().includes(q)).slice(0, SEARCH_LIMIT);
+  // match against the full path, not just the filename — a search for "Beethoven" should
+  // also surface tracks inside a Beethoven/ folder whose own filenames don't mention it
+  const matches = allFiles.filter(f => f.path.toLowerCase().includes(q)).slice(0, SEARCH_LIMIT);
   currentRows = matches;
   currentFiles = matches;
 
