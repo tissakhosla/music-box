@@ -236,30 +236,25 @@ body {
   gap: 0.15rem;
 }
 
-#mini-status-text {
+/* all 3 lines are individually slidable — the edge fade on each is computed in JS from
+   actual scroll position (see updateEdgeFade), not a static CSS gradient: the left fade
+   only appears once you've actually slid past the start, right fade only while there's
+   still more to slide to */
+#mini-status-text, #mini-status-album, #mini-status-artist {
   display: block;
-  font-size: 0.75rem;
-  opacity: 0.85;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  /* soft edges instead of a hard clip — a cue that there's more to slide to without
-     looking like the text is simply cut off */
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
-#mini-status-text::-webkit-scrollbar { display: none; }
+#mini-status-text::-webkit-scrollbar,
+#mini-status-album::-webkit-scrollbar,
+#mini-status-artist::-webkit-scrollbar { display: none; }
 
-#mini-status-album, #mini-status-artist {
-  display: none;
-  font-size: 0.65rem;
-  opacity: 0.6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+#mini-status-text { font-size: 0.78rem; opacity: 0.85; }
+
+#mini-status-album, #mini-status-artist { display: none; font-size: 0.68rem; opacity: 0.6; }
 #mini-status-album.visible, #mini-status-artist.visible { display: block; }
 
 #locate-btn {

@@ -86,6 +86,28 @@ function updateScrubUI() {
   updateWaveformProgress(pct);
 }
 
+// each mini-status line's edge fade is computed from its actual scroll position rather
+// than a static CSS gradient — left fade only once you've slid past the start, right
+// fade only while there's still more to slide to (neither, if it never overflows at all)
+const MINI_LINE_FADE_PX = 14;
+const miniStatusLineEls = [miniStatusTextEl, miniStatusAlbumEl, miniStatusArtistEl];
+
+function updateEdgeFade(el) {
+  const showLeft = el.scrollLeft > 1;
+  const showRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+  const left = showLeft ? `transparent 0, #000 ${MINI_LINE_FADE_PX}px` : '#000 0';
+  const right = showRight ? `#000 calc(100% - ${MINI_LINE_FADE_PX}px), transparent 100%` : '#000 100%';
+  const mask = `linear-gradient(to right, ${left}, ${right})`;
+  el.style.webkitMaskImage = mask;
+  el.style.maskImage = mask;
+}
+
+function refreshEdgeFades() {
+  requestAnimationFrame(() => miniStatusLineEls.forEach(updateEdgeFade));
+}
+
+miniStatusLineEls.forEach(el => el.addEventListener('scroll', () => updateEdgeFade(el)));
+
 // sets the banner to a single line — status messages (loading/error/resume-prompt) and
 // the bare filename before real metadata resolves. No auto-scroll — overflow just sits
 // there for the user to slide over themselves if they want to read it.
@@ -96,6 +118,7 @@ function setBannerText(text) {
   miniStatusAlbumEl.classList.remove('visible');
   miniStatusArtistEl.textContent = '';
   miniStatusArtistEl.classList.remove('visible');
+  refreshEdgeFades();
 }
 
 // grows the banner to up to 3 lines (track / album / artist) once real embedded
@@ -105,8 +128,11 @@ function setBannerMetadata(title, album, artist) {
   miniStatusTextEl.scrollLeft = 0;
   miniStatusAlbumEl.textContent = album || '';
   miniStatusAlbumEl.classList.toggle('visible', !!album);
+  miniStatusAlbumEl.scrollLeft = 0;
   miniStatusArtistEl.textContent = artist || '';
   miniStatusArtistEl.classList.toggle('visible', !!artist);
+  miniStatusArtistEl.scrollLeft = 0;
+  refreshEdgeFades();
 }
 
 // status messages (loading/error/resume-prompt) — these aren't "the track name", they're
