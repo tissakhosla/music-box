@@ -8,6 +8,8 @@ const screenContentEl = document.getElementById('screen-content');
 const miniStatusEl = document.getElementById('mini-status');
 const miniStatusBtnEl = document.getElementById('mini-status-btn');
 const miniStatusTextEl = document.getElementById('mini-status-text');
+const miniStatusAlbumEl = document.getElementById('mini-status-album');
+const miniStatusArtistEl = document.getElementById('mini-status-artist');
 const npTimeMarkersEl = document.getElementById('np-time-markers');
 const timeCurrentEl = document.getElementById('time-current');
 const timeDurationEl = document.getElementById('time-duration');
@@ -84,12 +86,27 @@ function updateScrubUI() {
   updateWaveformProgress(pct);
 }
 
-// sets the banner text only (mini-status) — used both for status messages
-// (loading/error/resume-prompt) and for real track info once playing. No auto-scroll —
-// overflow just sits there for the user to slide over themselves if they want to read it.
+// sets the banner to a single line — status messages (loading/error/resume-prompt) and
+// the bare filename before real metadata resolves. No auto-scroll — overflow just sits
+// there for the user to slide over themselves if they want to read it.
 function setBannerText(text) {
   miniStatusTextEl.textContent = text;
-  miniStatusBtnEl.scrollLeft = 0;
+  miniStatusTextEl.scrollLeft = 0;
+  miniStatusAlbumEl.textContent = '';
+  miniStatusAlbumEl.classList.remove('visible');
+  miniStatusArtistEl.textContent = '';
+  miniStatusArtistEl.classList.remove('visible');
+}
+
+// grows the banner to up to 3 lines (track / album / artist) once real embedded
+// metadata is available — only the fields that actually exist get a line
+function setBannerMetadata(title, album, artist) {
+  miniStatusTextEl.textContent = title;
+  miniStatusTextEl.scrollLeft = 0;
+  miniStatusAlbumEl.textContent = album || '';
+  miniStatusAlbumEl.classList.toggle('visible', !!album);
+  miniStatusArtistEl.textContent = artist || '';
+  miniStatusArtistEl.classList.toggle('visible', !!artist);
 }
 
 // status messages (loading/error/resume-prompt) — these aren't "the track name", they're
@@ -100,7 +117,7 @@ function setNowPlaying(title, artist) {
 }
 
 // once a track is actually playing, the banner shows the real track name (updated again
-// with title/artist once embedded metadata resolves) — the full-screen view stays
+// with title/album/artist once embedded metadata resolves) — the full-screen view stays
 // artwork-only, no redundant text copy
 function setPlayingState(file) {
   setBannerText(file.name);
@@ -197,6 +214,7 @@ async function readId3v2(url) {
 
     if (frameId === 'TIT2' || frameId === 'TT2') result.title = decodeId3Text(frameData);
     else if (frameId === 'TPE1' || frameId === 'TP1') result.artist = decodeId3Text(frameData);
+    else if (frameId === 'TALB' || frameId === 'TAL') result.album = decodeId3Text(frameData);
     else if (frameId === 'APIC' || frameId === 'PIC') result.picture = decodeApicFrame(frameData, isV22);
 
     offset = frameDataEnd;
@@ -292,6 +310,7 @@ function parseVorbisComment(buf, start, end, result) {
     const value = str.slice(eq + 1);
     if (key === 'TITLE') result.title = value;
     else if (key === 'ARTIST') result.artist = value;
+    else if (key === 'ALBUM') result.album = value;
   }
 }
 
@@ -310,6 +329,7 @@ function parseFlacPicture(buf, start) {
 function atomBytes(str) { return Array.from(str).map(c => c.charCodeAt(0)); }
 const ATOM_NAM = [0xa9, 0x6e, 0x61, 0x6d]; // ©nam
 const ATOM_ART = [0xa9, 0x41, 0x52, 0x54]; // ©ART
+const ATOM_ALB = [0xa9, 0x61, 0x6c, 0x62]; // ©alb
 
 // walks CHILD atoms within an already-fetched buffer (moov/udta/meta/ilst content is always
 // small, unlike top-level atoms which can include a multi-hundred-MB mdat)
@@ -398,6 +418,8 @@ async function readMp4Tags(url) {
   if (nam) result.title = extractDataAtomText(ilstBuf, nam);
   const art = findAtom(ilstBuf, ATOM_ART);
   if (art) result.artist = extractDataAtomText(ilstBuf, art);
+  const alb = findAtom(ilstBuf, ATOM_ALB);
+  if (alb) result.album = extractDataAtomText(ilstBuf, alb);
   const covr = findAtom(ilstBuf, atomBytes('covr'));
   if (covr) result.picture = extractCoverData(ilstBuf, covr);
 
@@ -536,8 +558,8 @@ async function fetchMetadata(file) {
 
   if (!tags) { setFallbackArtwork(file.path); return; }
 
-  if (tags.title || tags.artist) {
-    setBannerText(tags.artist ? `${tags.title || file.name} — ${tags.artist}` : tags.title);
+  if (tags.title || tags.album || tags.artist) {
+    setBannerMetadata(tags.title || file.name, tags.album, tags.artist);
   }
   if (tags.picture) {
     const blob = new Blob([tags.picture.data], { type: tags.picture.format });
