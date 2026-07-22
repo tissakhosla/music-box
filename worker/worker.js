@@ -1,5 +1,6 @@
 const DROPBOX_TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
 const DROPBOX_TEMP_LINK_URL = 'https://api.dropboxapi.com/2/files/get_temporary_link';
+const NASA_APOD_URL = 'https://api.nasa.gov/planetary/apod';
 const ALLOWED_ORIGIN = 'https://music-box-43b.pages.dev';
 
 let cachedAccessToken = null;
@@ -42,6 +43,23 @@ async function getStreamUrl(env, path) {
   }
   const data = await res.json();
   return data.link;
+}
+
+// Fallback artwork for tracks with no embedded picture — NASA's Astronomy Picture of
+// the Day archive has a built-in random-pick feature (count=N), so we ask for a few and
+// filter out the occasional video-of-the-day entry rather than searching for one ourselves.
+async function getRandomNasaImage(env) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(`${NASA_APOD_URL}?api_key=${env.NASA_API_KEY}&count=5`);
+    if (!res.ok) throw new Error(`NASA APOD request failed: ${res.status}`);
+    const items = await res.json();
+    const images = items.filter(item => item.media_type === 'image' && item.url);
+    if (images.length) {
+      const pick = images[Math.floor(Math.random() * images.length)];
+      return { url: pick.url || pick.hdurl, title: pick.title };
+    }
+  }
+  throw new Error('No image-type APOD entries found');
 }
 
 function corsHeaders() {
@@ -128,6 +146,15 @@ export default {
     if (url.pathname === '/annotations' && request.method === 'GET') {
       const all = await getAllAnnotations(env.ANNOTATIONS);
       return json(all);
+    }
+
+    if (url.pathname === '/nasa-image' && request.method === 'GET') {
+      try {
+        const image = await getRandomNasaImage(env);
+        return json(image);
+      } catch (e) {
+        return json({ error: e.message }, 502);
+      }
     }
 
     return json({ error: 'Not found' }, 404);

@@ -420,6 +420,20 @@ function showArtworkDebug(msg) {
   setBannerText(`[artwork: ${msg}]`);
 }
 
+// no embedded artwork on this track — fall back to a random NASA APOD image rather
+// than leaving the screen blank
+async function setFallbackArtwork(forPath) {
+  try {
+    const res = await fetch(`${WORKER_URL}/nasa-image`);
+    if (!res.ok) throw new Error(`NASA image fetch failed: ${res.status}`);
+    const data = await res.json();
+    if (currentTrackPath !== forPath) return;
+    if (data.url) setArtwork(data.url); else artworkWrapEl.classList.remove('loading');
+  } catch (e) {
+    if (currentTrackPath === forPath) artworkWrapEl.classList.remove('loading');
+  }
+}
+
 async function fetchMetadata(file) {
   artworkWrapEl.classList.add('loading');
 
@@ -430,6 +444,7 @@ async function fetchMetadata(file) {
     metaUrl = await streamUrlFor(file);
   } catch (e) {
     showArtworkDebug(`stream url fetch failed: ${e.message}`);
+    setFallbackArtwork(file.path);
     return;
   }
   if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
@@ -439,11 +454,12 @@ async function fetchMetadata(file) {
     tags = await readTags(metaUrl, file.path);
   } catch (e) {
     if (currentTrackPath === file.path) showArtworkDebug(`tag parse failed: ${e.message}`);
+    setFallbackArtwork(file.path);
     return;
   }
   if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
 
-  if (!tags) { setArtwork(null); return; }
+  if (!tags) { setFallbackArtwork(file.path); return; }
 
   if (tags.title || tags.artist) {
     setBannerText(tags.artist ? `${tags.title || file.name} — ${tags.artist}` : tags.title);
@@ -455,7 +471,7 @@ async function fetchMetadata(file) {
     reader.onerror = () => showArtworkDebug(`FileReader error: ${reader.error && reader.error.message}`);
     reader.readAsDataURL(blob);
   } else {
-    setArtwork(null);
+    setFallbackArtwork(file.path);
   }
 }
 
