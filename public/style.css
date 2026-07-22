@@ -487,5 +487,8 @@ body {
   width: 42%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
+  /* the center button stays the app's darker background, distinguishing it
+     from the lighter ring around it without needing a border */
+  background: #141414;
   pointer-events: none;
 }
