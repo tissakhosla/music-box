@@ -236,6 +236,10 @@ body {
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  /* soft edges instead of a hard clip — a cue that there's more to slide to without
+     looking like the text is simply cut off */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
 #mini-status-btn::-webkit-scrollbar { display: none; }
 
