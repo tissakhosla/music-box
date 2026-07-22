@@ -10,6 +10,9 @@ const miniStatusBtnEl = document.getElementById('mini-status-btn');
 const miniStatusTextEl = document.getElementById('mini-status-text');
 const npTitleEl = document.getElementById('np-title');
 const npArtistEl = document.getElementById('np-artist');
+const npTimeMarkersEl = document.getElementById('np-time-markers');
+const timeCurrentEl = document.getElementById('time-current');
+const timeDurationEl = document.getElementById('time-duration');
 const nowPlayingViewEl = document.getElementById('nowplaying-view');
 const artworkWrapEl = document.getElementById('artwork-wrap');
 const artworkEl = document.getElementById('artwork');
@@ -53,6 +56,31 @@ let shuffleMode = false;
 let currentAnnotation = { note: '', tags: [] };
 let suggestedTagsCache = [];
 let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
+
+function fmtTime(sec) {
+  if (!isFinite(sec)) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// shared by both scrub gestures (artwork drag, wheel-rotate) — the mini-status
+// border-scrub-bar grows a play-position cursor and the time markers appear
+function beginScrubUI() {
+  miniStatusEl.classList.add('scrubbing');
+  npTimeMarkersEl.classList.add('visible');
+}
+function endScrubUI() {
+  miniStatusEl.classList.remove('scrubbing');
+  npTimeMarkersEl.classList.remove('visible');
+}
+function updateScrubUI() {
+  if (!isFinite(audio.duration)) return;
+  const pct = (audio.currentTime / audio.duration) * 100;
+  document.documentElement.style.setProperty('--progress', `${pct}%`);
+  timeCurrentEl.textContent = fmtTime(audio.currentTime);
+  timeDurationEl.textContent = fmtTime(audio.duration);
+}
 
 function refreshMarquee() {
   miniStatusTextEl.classList.remove('marquee');
@@ -764,6 +792,7 @@ function seekBy(steps) {
   if (!isFinite(audio.duration) || !audio.src) return;
   const stepSeconds = Math.max(2, audio.duration * 0.005);
   audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + steps * stepSeconds));
+  updateScrubUI();
 }
 
 async function streamUrlFor(file) {
@@ -875,9 +904,7 @@ audio.addEventListener('play', () => { wheelPlayBtn.innerHTML = PAUSE_ICON; });
 audio.addEventListener('pause', () => { wheelPlayBtn.innerHTML = PLAY_ICON; saveResume(); });
 audio.addEventListener('ended', () => playAtIndex(currentFileIndex + 1));
 audio.addEventListener('timeupdate', () => {
-  if (!isFinite(audio.duration)) return;
-  const pct = (audio.currentTime / audio.duration) * 100;
-  document.documentElement.style.setProperty('--progress', `${pct}%`);
+  updateScrubUI();
   const now = Date.now();
   if (now - lastResumeSave > RESUME_SAVE_INTERVAL_MS) {
     lastResumeSave = now;
@@ -886,34 +913,52 @@ audio.addEventListener('timeupdate', () => {
 });
 window.addEventListener('pagehide', saveResume);
 
-// ---------- hold-and-slide-to-scrub: drag anywhere on the now playing screen to seek ----------
+// ---------- hold-and-slide-to-scrub: drag on the now playing screen moves playback
+// position relative to wherever it currently is (holding still never jumps anywhere —
+// only movement does). How far up/down the finger strays from where the drag started
+// controls fineness: slide up for slower, more precise scrubbing; slide down for
+// faster, coarser scrubbing. ----------
 
 let scrubbing = false;
+let scrubTime = 0;
+let scrubLastX = 0;
+let scrubStartY = 0;
+let scrubViewWidth = 0;
+let scrubViewHeight = 0;
 
-function scrubToClientX(clientX) {
-  if (!isFinite(audio.duration)) return;
-  const rect = nowPlayingViewEl.getBoundingClientRect();
-  const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-  audio.currentTime = frac * audio.duration;
-  document.documentElement.style.setProperty('--progress', `${frac * 100}%`);
-}
+const SCRUB_BASE_LAPS = 1;      // neutral vertical position: a full-width drag covers this many track-lengths
+const SCRUB_FINENESS_RANGE = 4; // sliding all the way up/down multiplies/divides the rate by this much
 
 nowPlayingViewEl.addEventListener('pointerdown', (e) => {
   if (!isFinite(audio.duration)) return;
   nowPlayingViewEl.setPointerCapture(e.pointerId);
   scrubbing = true;
-  miniStatusEl.classList.add('scrubbing');
-  scrubToClientX(e.clientX);
+  scrubTime = audio.currentTime;
+  scrubLastX = e.clientX;
+  scrubStartY = e.clientY;
+  const rect = nowPlayingViewEl.getBoundingClientRect();
+  scrubViewWidth = rect.width;
+  scrubViewHeight = rect.height;
+  beginScrubUI();
+  updateScrubUI();
   e.preventDefault();
 });
 nowPlayingViewEl.addEventListener('pointermove', (e) => {
   if (!scrubbing) return;
-  scrubToClientX(e.clientX);
+  const dx = e.clientX - scrubLastX;
+  scrubLastX = e.clientX;
+  if (dx === 0) return;
+  const dyNorm = (scrubStartY - e.clientY) / Math.max(1, scrubViewHeight); // positive = slid up
+  const fineness = Math.pow(SCRUB_FINENESS_RANGE, dyNorm);
+  const secondsPerPixel = (audio.duration * SCRUB_BASE_LAPS / scrubViewWidth) / fineness;
+  scrubTime = Math.max(0, Math.min(audio.duration, scrubTime + dx * secondsPerPixel));
+  audio.currentTime = scrubTime;
+  updateScrubUI();
 });
 function endScrub() {
   if (!scrubbing) return;
   scrubbing = false;
-  miniStatusEl.classList.remove('scrubbing');
+  endScrubUI();
 }
 nowPlayingViewEl.addEventListener('pointerup', endScrub);
 nowPlayingViewEl.addEventListener('pointercancel', endScrub);
@@ -971,13 +1016,16 @@ wheelEl.addEventListener('pointermove', (e) => {
   if (delta < -180) delta += 360;
   accumAngle += delta;
   lastAngle = angle;
-  const step = screenContentEl.classList.contains('showing-nowplaying') ? seekBy : moveCursor;
+  const nowPlaying = screenContentEl.classList.contains('showing-nowplaying');
+  const step = nowPlaying ? seekBy : moveCursor;
+  if (nowPlaying) beginScrubUI();
   while (accumAngle >= DEGREES_PER_STEP) { step(1); accumAngle -= DEGREES_PER_STEP; }
   while (accumAngle <= -DEGREES_PER_STEP) { step(-1); accumAngle += DEGREES_PER_STEP; }
 });
 
 wheelEl.addEventListener('pointerup', (e) => {
   dragging = false;
+  endScrubUI();
   if (totalMove >= 10) return; // was a drag, not a tap
   const zone = zoneFromPoint(e.clientX, e.clientY);
   if (zone === 'select') {
@@ -989,7 +1037,7 @@ wheelEl.addEventListener('pointerup', (e) => {
   else if (zone === 'prev') playAtIndex(currentFileIndex - 1);
   else if (zone === 'next') playAtIndex(currentFileIndex + 1);
 });
-wheelEl.addEventListener('pointercancel', () => { dragging = false; });
+wheelEl.addEventListener('pointercancel', () => { dragging = false; endScrubUI(); });
 
 fetch('files.json')
   .then(res => res.json())

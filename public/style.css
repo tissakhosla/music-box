@@ -320,6 +320,20 @@ body {
   overflow-wrap: break-word;
 }
 
+/* only shown while actively scrubbing (drag on the artwork, or wheel-rotate) —
+   collapses to zero height rather than display:none so it can fade in/out smoothly */
+#np-time-markers {
+  width: 100%;
+  text-align: center;
+  font-size: 0.7rem;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease, max-height 0.15s ease;
+}
+#np-time-markers.visible { max-height: 1.2rem; opacity: 0.85; }
+.time-sep { opacity: 0.5; margin: 0 0.35em; }
+
 /* ---------- annotate panel (reorg triage: notes/tags, not music metadata) ---------- */
 
 #annotate-panel {
