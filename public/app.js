@@ -28,6 +28,9 @@ const annotateCancelBtn = document.getElementById('annotate-cancel-btn');
 const annotateSaveBtn = document.getElementById('annotate-save-btn');
 const shuffleAllBtn = document.getElementById('shuffle-all-btn');
 const locateBtn = document.getElementById('locate-btn');
+const npVizEl = document.getElementById('np-viz');
+const npWaveformEl = document.getElementById('np-waveform');
+const eqFillEls = Array.from(document.querySelectorAll('.eq-fill'));
 
 const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
@@ -35,6 +38,8 @@ const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM
 const SEARCH_LIMIT = 300;
 const RESUME_SAVE_INTERVAL_MS = 5000;
 const DEGREES_PER_STEP = 20; // wheel drag distance per list move, mimics the physical click wheel's detents
+const EQ_BAND_BINS = [2, 2, 2, 3, 3, 3, 4, 4, 4, 5]; // how many of the 32 analyser bins feed each of the 10 bands, sums to 32
+const WAVEFORM_BARS = 50;
 
 let root = null;
 let allFiles = [];
@@ -53,6 +58,14 @@ let shuffleMode = false;
 let currentAnnotation = { note: '', tags: [] };
 let suggestedTagsCache = [];
 let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
+
+let vizMode = 'eq'; // 'eq' | 'waveform' — EQ is the default view
+let audioCtx = null;
+let analyser = null;
+let analyserData = null;
+let eqRafId = null;
+const waveformCache = new Map(); // track path -> Float32Array of per-bar peak levels (0-1)
+let waveformBarEls = [];
 
 function fmtTime(sec) {
   if (!isFinite(sec)) return '0:00';
@@ -77,6 +90,7 @@ function updateScrubUI() {
   document.documentElement.style.setProperty('--progress', `${pct}%`);
   timeCurrentEl.textContent = fmtTime(audio.currentTime);
   timeDurationEl.textContent = fmtTime(audio.duration);
+  if (vizMode === 'waveform') updateWaveformProgress(pct);
 }
 
 function refreshMarquee() {
@@ -433,6 +447,116 @@ async function setFallbackArtwork(forPath) {
     if (currentTrackPath === forPath) artworkWrapEl.classList.remove('loading');
   }
 }
+
+// ---------- old-school 10-band EQ (default view) / waveform (tap to swap) ----------
+
+function ensureAudioGraph() {
+  if (audioCtx) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  audioCtx = new Ctx();
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 64;
+  analyserData = new Uint8Array(analyser.frequencyBinCount);
+  // tap into the <audio> element's output for analysis, then pass it straight through to
+  // the speakers — playback itself still lives entirely on the <audio> element
+  const source = audioCtx.createMediaElementSource(audio);
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+}
+
+function eqTick() {
+  if (audio.paused) { eqRafId = null; return; }
+  if (vizMode === 'eq' && analyser) {
+    analyser.getByteFrequencyData(analyserData);
+    let binIndex = 0;
+    for (let band = 0; band < EQ_BAND_BINS.length; band++) {
+      const count = EQ_BAND_BINS[band];
+      let sum = 0;
+      for (let i = 0; i < count; i++) sum += analyserData[binIndex++];
+      const level = (sum / count / 255) * 100;
+      eqFillEls[band].style.height = `${Math.max(2, level)}%`;
+    }
+  }
+  eqRafId = requestAnimationFrame(eqTick);
+}
+
+function buildWaveformBars() {
+  if (waveformBarEls.length) return;
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'wf-bar';
+    npWaveformEl.appendChild(bar);
+  }
+  waveformBarEls = Array.from(npWaveformEl.children);
+}
+
+function updateWaveformProgress(pct) {
+  if (!waveformBarEls.length) return;
+  const playedCount = Math.round((pct / 100) * WAVEFORM_BARS);
+  for (let i = 0; i < waveformBarEls.length; i++) {
+    waveformBarEls[i].classList.toggle('played', i < playedCount);
+  }
+}
+
+function renderWaveform(peaks) {
+  buildWaveformBars();
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    waveformBarEls[i].style.height = `${Math.max(6, peaks[i] * 100)}%`;
+  }
+  updateWaveformProgress(isFinite(audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0);
+}
+
+function computeWaveformPeaks(audioBuffer) {
+  const data = audioBuffer.getChannelData(0);
+  const blockSize = Math.max(1, Math.floor(data.length / WAVEFORM_BARS));
+  const peaks = new Float32Array(WAVEFORM_BARS);
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    let max = 0;
+    const start = i * blockSize;
+    const end = Math.min(data.length, start + blockSize);
+    for (let j = start; j < end; j++) {
+      const v = Math.abs(data[j]);
+      if (v > max) max = v;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}
+
+// decodes the whole file to build a real peak-per-segment waveform — done lazily, only
+// once the user actually switches to waveform view, and cached per track thereafter
+async function loadWaveformForCurrentTrack() {
+  const path = currentTrackPath;
+  if (!path) return;
+  if (waveformCache.has(path)) { renderWaveform(waveformCache.get(path)); return; }
+  buildWaveformBars();
+  npVizEl.classList.add('waveform-loading');
+  try {
+    ensureAudioGraph();
+    const url = await streamUrlFor({ path });
+    const res = await fetch(url);
+    const arrayBuf = await res.arrayBuffer();
+    const decoded = await audioCtx.decodeAudioData(arrayBuf);
+    const peaks = computeWaveformPeaks(decoded);
+    waveformCache.set(path, peaks);
+    if (currentTrackPath === path && vizMode === 'waveform') renderWaveform(peaks);
+  } catch (e) {
+    // couldn't decode this file for a waveform — leave the bars flat, not fatal
+  } finally {
+    if (currentTrackPath === path) npVizEl.classList.remove('waveform-loading');
+  }
+}
+
+function toggleVizMode() {
+  vizMode = vizMode === 'eq' ? 'waveform' : 'eq';
+  npVizEl.classList.toggle('waveform-mode', vizMode === 'waveform');
+  miniStatusEl.classList.toggle('viz-waveform', vizMode === 'waveform');
+  if (vizMode === 'waveform') loadWaveformForCurrentTrack();
+}
+
+// stop the tap from also bubbling into the artwork's hold-and-slide-to-scrub gesture
+npVizEl.addEventListener('pointerdown', (e) => e.stopPropagation());
+npVizEl.addEventListener('click', toggleVizMode);
 
 async function fetchMetadata(file) {
   artworkWrapEl.classList.add('loading');
@@ -825,6 +949,7 @@ async function playFile(file, resumeTime = 0) {
 
   setArtwork(null);
   setNowPlaying(`${file.name} — loading…`, '');
+  if (vizMode === 'waveform') loadWaveformForCurrentTrack();
   try {
     const url = await streamUrlFor(file);
     setPlayingState(file);
@@ -908,7 +1033,12 @@ function doMenu() {
 
 miniStatusBtnEl.addEventListener('click', () => { if (currentTrackPath) showNowPlaying(); });
 
-audio.addEventListener('play', () => { wheelPlayBtn.innerHTML = PAUSE_ICON; });
+audio.addEventListener('play', () => {
+  wheelPlayBtn.innerHTML = PAUSE_ICON;
+  ensureAudioGraph();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (eqRafId === null) eqRafId = requestAnimationFrame(eqTick);
+});
 audio.addEventListener('pause', () => { wheelPlayBtn.innerHTML = PLAY_ICON; saveResume(); });
 audio.addEventListener('ended', () => playAtIndex(currentFileIndex + 1));
 audio.addEventListener('timeupdate', () => {
