@@ -310,10 +310,12 @@ body {
 }
 #artwork-wrap.has-art #artwork { opacity: 1; }
 
+/* no bottom padding — the waveform (last child) sits flush against #mini-status below
+   it, right where the browse-only progress bar lives at the top of that bar */
 #np-overlay {
   flex: none;
   width: 100%;
-  padding: 1rem;
+  padding: 1rem 1rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;

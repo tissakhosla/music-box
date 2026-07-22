@@ -505,17 +505,27 @@ function updateWaveformProgress(pct) {
   }
 }
 
+// bars rise from flat dots up to their real height with a left-to-right cascade,
+// rather than snapping in all at once
 function renderWaveform(peaks) {
   for (let i = 0; i < WAVEFORM_BARS; i++) {
-    waveformBarEls[i].style.height = `${Math.max(6, peaks[i] * 100)}%`;
+    const bar = waveformBarEls[i];
+    bar.style.transition = `height 0.3s ease ${Math.min(i * 3, 200)}ms`;
+    bar.style.height = `${Math.max(6, peaks[i] * 100)}%`;
   }
   updateWaveformProgress(isFinite(audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0);
 }
 
 // resets bars back to flat dots (CSS min-height) for the new track, while its own
-// waveform decodes in the background
+// waveform decodes in the background — instant, not animated, so it doesn't fight with
+// the next renderWaveform()'s rise-up transition
 function resetWaveformUI() {
-  for (const bar of waveformBarEls) { bar.style.height = ''; bar.classList.remove('played'); }
+  for (const bar of waveformBarEls) {
+    bar.style.transition = 'none';
+    bar.style.height = '';
+    bar.classList.remove('played');
+  }
+  void npWaveformEl.offsetHeight; // force layout so the 'none' transition actually commits
 }
 
 function computeWaveformPeaks(audioBuffer) {
