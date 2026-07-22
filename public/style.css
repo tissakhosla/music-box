@@ -63,7 +63,7 @@ body {
   min-height: 0;
 }
 
-#nowplaying-view { display: none; position: relative; overflow: hidden; }
+#nowplaying-view { display: none; overflow: hidden; }
 #screen-content.showing-nowplaying #browse-view { display: none; }
 #screen-content.showing-nowplaying #nowplaying-view { display: block; }
 
