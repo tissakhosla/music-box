@@ -193,8 +193,6 @@ body {
 /* while dragging on the now-playing screen, the border-scrub-bar grows a
    visible play-position cursor instead of a separate on-screen slider */
 #mini-status.scrubbing::before { height: 5px; }
-/* the waveform view takes over as the progress bar, so this one steps aside */
-#mini-status.viz-waveform::before, #mini-status.viz-waveform #mini-progress-thumb { opacity: 0; }
 
 #mini-progress-thumb {
   position: absolute;
@@ -309,53 +307,6 @@ body {
 }
 #np-time-markers.visible { max-height: 1.2rem; opacity: 0.85; }
 .time-sep { opacity: 0.5; margin: 0 0.35em; }
-
-/* old-school hardware EQ (default view) / waveform (tap to swap) — sits directly above
-   the mini-status bar's own progress line, which the waveform mode takes over from */
-#np-viz {
-  position: relative;
-  width: 100%;
-  height: 30px;
-  cursor: pointer;
-}
-#np-eq, #np-waveform {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-}
-#np-waveform { display: none; }
-#np-viz.waveform-mode #np-eq { display: none; }
-#np-viz.waveform-mode #np-waveform { display: flex; }
-#np-viz.waveform-loading #np-waveform { opacity: 0.4; transition: opacity 0.2s; }
-
-.eq-band {
-  width: 6px;
-  height: 100%;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(238, 238, 238, 0.08);
-  overflow: hidden;
-}
-.eq-fill {
-  width: 100%;
-  height: 2%;
-  /* thin lit/unlit stripes — an old hardware LED meter's segmented look, no new colors */
-  background: repeating-linear-gradient(to top, #eee 0, #eee 2px, transparent 2px, transparent 4px);
-  transition: height 0.05s linear;
-}
-
-/* single row of bars — the "played" class (toggled per-bar as playback advances)
-   is what makes this double as the progress bar, no separate overlay needed */
-.wf-bar {
-  width: 3px;
-  min-height: 2px;
-  border-radius: 1px;
-  background: rgba(238, 238, 238, 0.25);
-  transition: background 0.1s linear;
-}
-.wf-bar.played { background: #eee; }
 
 /* ---------- annotate panel (reorg triage: notes/tags, not music metadata) ---------- */
 
