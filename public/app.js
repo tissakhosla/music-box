@@ -84,25 +84,12 @@ function updateScrubUI() {
   updateWaveformProgress(pct);
 }
 
-function refreshMarquee() {
-  miniStatusTextEl.classList.remove('marquee');
-  miniStatusTextEl.style.removeProperty('--marquee-distance');
-  requestAnimationFrame(() => {
-    const style = getComputedStyle(miniStatusBtnEl);
-    const available = miniStatusBtnEl.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    const overflow = miniStatusTextEl.scrollWidth - available;
-    if (overflow > 0) {
-      miniStatusTextEl.style.setProperty('--marquee-distance', `-${overflow}px`);
-      miniStatusTextEl.classList.add('marquee');
-    }
-  });
-}
-
 // sets the banner text only (mini-status) — used both for status messages
-// (loading/error/resume-prompt) and for real track info once playing
+// (loading/error/resume-prompt) and for real track info once playing. No auto-scroll —
+// overflow just sits there for the user to slide over themselves if they want to read it.
 function setBannerText(text) {
   miniStatusTextEl.textContent = text;
-  refreshMarquee();
+  miniStatusBtnEl.scrollLeft = 0;
 }
 
 // status messages (loading/error/resume-prompt) — these aren't "the track name", they're
