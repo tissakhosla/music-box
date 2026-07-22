@@ -94,20 +94,43 @@ function setArtwork(url) {
   }
 }
 
-// Minimal ID3v2.2/2.3/2.4 tag reader using fetch()+ArrayBuffer only — replaces jsmediatags,
+// Metadata readers below use only fetch()+ArrayBuffer+TextDecoder — replaces jsmediatags,
 // which relied on the legacy xhr.overrideMimeType('text/plain; charset=x-user-defined')
 // technique for binary XHR (pre-dating responseType='arraybuffer'). Confirmed via a real
 // iPhone that technique fails outright on iOS WebKit ("Generic XHR error") in both Safari
-// and Chrome for iOS (same engine), while working fine on desktop Chrome. fetch()+ArrayBuffer
-// is universally supported and doesn't rely on any legacy binary-XHR hack.
-//
-// Only handles MP3/ID3v2 for now — M4A and FLAC tracks fall back to filename-only, same as
-// untagged files. ID3v2 covers the largest slice of this library (mp3 is the single biggest
-// format by file count).
+// and Chrome for iOS (same engine), while working fine on desktop Chrome.
+
+async function fetchRange(url, start, end) {
+  const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` } });
+  if (!res.ok) throw new Error(`range fetch failed: ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function fetchContentLength(url) {
+  const res = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+  const range = res.headers.get('content-range');
+  const m = range && range.match(/\/(\d+)$/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function readU32BE(buf, o) {
+  return ((buf[o] << 24) | (buf[o+1] << 16) | (buf[o+2] << 8) | buf[o+3]) >>> 0;
+}
+function readU32LE(buf, o) {
+  return (buf[o] | (buf[o+1] << 8) | (buf[o+2] << 16) | (buf[o+3] << 24)) >>> 0;
+}
+
+// dispatches by extension, returns { title?, artist?, picture? } or null
+async function readTags(url, filePath) {
+  const ext = filePath.slice(filePath.lastIndexOf('.') + 1).toLowerCase();
+  if (ext === 'mp3') return readId3v2(url);
+  if (ext === 'flac') return readFlacTags(url);
+  if (ext === 'm4a') return readMp4Tags(url);
+  return null;
+}
+
 async function readId3v2(url) {
-  const headerRes = await fetch(url, { headers: { Range: 'bytes=0-9' } });
-  if (!headerRes.ok) throw new Error(`header fetch failed: ${headerRes.status}`);
-  const headerBuf = new Uint8Array(await headerRes.arrayBuffer());
+  const headerBuf = await fetchRange(url, 0, 9);
   if (headerBuf.length < 10 || headerBuf[0] !== 0x49 || headerBuf[1] !== 0x44 || headerBuf[2] !== 0x33) {
     return null; // no "ID3" signature
   }
@@ -116,10 +139,7 @@ async function readId3v2(url) {
   const tagSize = ((headerBuf[6] & 0x7f) << 21) | ((headerBuf[7] & 0x7f) << 14) | ((headerBuf[8] & 0x7f) << 7) | (headerBuf[9] & 0x7f);
   const extendedHeaderPresent = !!(flags & 0x40);
 
-  const totalSize = 10 + tagSize;
-  const bodyRes = await fetch(url, { headers: { Range: `bytes=0-${totalSize - 1}` } });
-  if (!bodyRes.ok) throw new Error(`tag fetch failed: ${bodyRes.status}`);
-  const buf = new Uint8Array(await bodyRes.arrayBuffer());
+  const buf = await fetchRange(url, 0, 10 + tagSize - 1);
 
   let offset = 10;
   if (extendedHeaderPresent) {
@@ -200,6 +220,167 @@ function decodeApicFrame(frameData, isV22) {
   return { format: mime, data: frameData.slice(offset) };
 }
 
+async function readFlacTags(url) {
+  const PROBE = 2 * 1024 * 1024;
+  let buf = await fetchRange(url, 0, PROBE - 1);
+  if (buf.length < 4 || String.fromCharCode(...buf.slice(0, 4)) !== 'fLaC') return null;
+
+  const result = {};
+  let offset = 4;
+  while (offset + 4 <= buf.length) {
+    const blockHeader = buf[offset];
+    const isLast = !!(blockHeader & 0x80);
+    const blockType = blockHeader & 0x7f;
+    const blockLen = (buf[offset+1] << 16) | (buf[offset+2] << 8) | buf[offset+3];
+    const blockStart = offset + 4;
+    let blockEnd = blockStart + blockLen;
+
+    if (blockEnd > buf.length) {
+      const more = await fetchRange(url, buf.length, blockEnd - 1);
+      const merged = new Uint8Array(buf.length + more.length);
+      merged.set(buf);
+      merged.set(more, buf.length);
+      buf = merged;
+    }
+
+    if (blockType === 4) {
+      parseVorbisComment(buf, blockStart, blockEnd, result);
+    } else if (blockType === 6 && !result.picture) {
+      result.picture = parseFlacPicture(buf, blockStart, blockEnd);
+    }
+
+    offset = blockEnd;
+    if (isLast) break;
+  }
+  return result;
+}
+
+function parseVorbisComment(buf, start, end, result) {
+  let o = start;
+  const vendorLen = readU32LE(buf, o); o += 4 + vendorLen;
+  const count = readU32LE(buf, o); o += 4;
+  for (let i = 0; i < count && o < end; i++) {
+    const len = readU32LE(buf, o); o += 4;
+    const str = new TextDecoder('utf-8').decode(buf.slice(o, o + len));
+    o += len;
+    const eq = str.indexOf('=');
+    if (eq === -1) continue;
+    const key = str.slice(0, eq).toUpperCase();
+    const value = str.slice(eq + 1);
+    if (key === 'TITLE') result.title = value;
+    else if (key === 'ARTIST') result.artist = value;
+  }
+}
+
+function parseFlacPicture(buf, start) {
+  let o = start;
+  o += 4; // picture type
+  const mimeLen = readU32BE(buf, o); o += 4;
+  const mime = new TextDecoder('ascii').decode(buf.slice(o, o + mimeLen)); o += mimeLen;
+  const descLen = readU32BE(buf, o); o += 4;
+  o += descLen;
+  o += 16; // width, height, depth, colors used
+  const dataLen = readU32BE(buf, o); o += 4;
+  return { format: mime, data: buf.slice(o, o + dataLen) };
+}
+
+function atomBytes(str) { return Array.from(str).map(c => c.charCodeAt(0)); }
+const ATOM_NAM = [0xa9, 0x6e, 0x61, 0x6d]; // ©nam
+const ATOM_ART = [0xa9, 0x41, 0x52, 0x54]; // ©ART
+
+// walks CHILD atoms within an already-fetched buffer (moov/udta/meta/ilst content is always
+// small, unlike top-level atoms which can include a multi-hundred-MB mdat)
+function findAtom(buf, typeBytes) {
+  let offset = 0;
+  while (offset + 8 <= buf.length) {
+    let size = readU32BE(buf, offset);
+    const atomType = buf.slice(offset + 4, offset + 8);
+    let headerLen = 8;
+    if (size === 1) {
+      headerLen = 16;
+      const hi = readU32BE(buf, offset + 8);
+      const lo = readU32BE(buf, offset + 12);
+      size = hi * 4294967296 + lo;
+    }
+    if (size < headerLen) break;
+    const matches = atomType.length === 4 && Array.from(atomType).every((b, i) => b === typeBytes[i]);
+    if (matches) return { start: offset + headerLen, end: offset + size };
+    offset += size;
+  }
+  return null;
+}
+
+// walks TOP-LEVEL atoms by fetching just each atom's header and jumping to the next atom's
+// exact computed position, rather than guessing a fixed probe window — moov can be
+// positioned anywhere, including after a huge extended-size mdat atom
+async function findMoovContent(url, fileSize) {
+  let pos = 0;
+  const HEADER_CHUNK = 65536;
+  while (pos + 8 <= fileSize) {
+    const headerBuf = await fetchRange(url, pos, Math.min(pos + HEADER_CHUNK, fileSize) - 1);
+    if (headerBuf.length < 8) break;
+    let size = readU32BE(headerBuf, 0);
+    const type = String.fromCharCode(headerBuf[4], headerBuf[5], headerBuf[6], headerBuf[7]);
+    let headerLen = 8;
+    if (size === 1) {
+      headerLen = 16;
+      const hi = readU32BE(headerBuf, 8);
+      const lo = readU32BE(headerBuf, 12);
+      size = hi * 4294967296 + lo;
+    }
+    if (size < headerLen) break;
+    if (type === 'moov') return await fetchRange(url, pos + headerLen, pos + size - 1);
+    pos += size;
+  }
+  return null;
+}
+
+function extractDataAtomText(buf, atomInfo) {
+  const inner = buf.slice(atomInfo.start, atomInfo.end);
+  const data = findAtom(inner, atomBytes('data'));
+  if (!data) return null;
+  const dataBuf = inner.slice(data.start, data.end);
+  return new TextDecoder('utf-8').decode(dataBuf.slice(8));
+}
+
+function extractCoverData(buf, atomInfo) {
+  const inner = buf.slice(atomInfo.start, atomInfo.end);
+  const data = findAtom(inner, atomBytes('data'));
+  if (!data) return null;
+  const dataBuf = inner.slice(data.start, data.end);
+  const typeFlag = readU32BE(dataBuf, 0);
+  const format = typeFlag === 14 ? 'image/png' : 'image/jpeg';
+  return { format, data: dataBuf.slice(8) };
+}
+
+async function readMp4Tags(url) {
+  const fileSize = await fetchContentLength(url);
+  if (!fileSize) return null;
+
+  const moovBuf = await findMoovContent(url, fileSize);
+  if (!moovBuf) return null;
+
+  const udta = findAtom(moovBuf, atomBytes('udta'));
+  if (!udta) return null;
+  const udtaBuf = moovBuf.slice(udta.start, udta.end);
+  const meta = findAtom(udtaBuf, atomBytes('meta'));
+  if (!meta) return null;
+  const metaBuf = udtaBuf.slice(meta.start + 4, meta.end); // meta has a 4-byte version/flags field
+  const ilst = findAtom(metaBuf, atomBytes('ilst'));
+  if (!ilst) return null;
+  const ilstBuf = metaBuf.slice(ilst.start, ilst.end);
+
+  const result = {};
+  const nam = findAtom(ilstBuf, ATOM_NAM);
+  if (nam) result.title = extractDataAtomText(ilstBuf, nam);
+  const art = findAtom(ilstBuf, ATOM_ART);
+  if (art) result.artist = extractDataAtomText(ilstBuf, art);
+  const covr = findAtom(ilstBuf, atomBytes('covr'));
+  if (covr) result.picture = extractCoverData(ilstBuf, covr);
+
+  return result;
+}
+
 // TEMPORARY diagnostic: surfaces the actual error text in the banner instead of silently
 // clearing artwork, since we can't get real console output from an iPhone without a Mac.
 // Remove once confirmed solid across a few real-device tests.
@@ -224,9 +405,9 @@ async function fetchMetadata(file) {
 
   let tags;
   try {
-    tags = await readId3v2(metaUrl);
+    tags = await readTags(metaUrl, file.path);
   } catch (e) {
-    if (currentTrackPath === file.path) showArtworkDebug(`ID3 parse failed: ${e.message}`);
+    if (currentTrackPath === file.path) showArtworkDebug(`tag parse failed: ${e.message}`);
     return;
   }
   if (currentTrackPath !== file.path) { artworkWrapEl.classList.remove('loading'); return; }
