@@ -280,10 +280,11 @@ body {
 
 /* centered as-is, letterboxed with even margins by its own aspect ratio — never cropped */
 #artwork {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  /* fills the available area, scaling small embedded artwork up rather than leaving it
+     tiny — object-fit: contain still preserves aspect ratio and never crops */
+  object-fit: contain;
   display: block;
   border-radius: 4px;
   opacity: 0;
