@@ -193,10 +193,10 @@ body {
 /* while dragging on the now-playing screen, the border-scrub-bar grows a
    visible play-position cursor instead of a separate on-screen slider */
 #mini-status.scrubbing::before { height: 5px; }
-/* once the current track's waveform has rendered, it takes over as the progress bar —
-   but only while Now Playing is actually visible, since the waveform lives there */
-#screen-content.showing-nowplaying ~ #mini-status.waveform-ready::before,
-#screen-content.showing-nowplaying ~ #mini-status.waveform-ready #mini-progress-thumb {
+/* the border-scrub-bar is a browse-only affordance — the waveform is the only progress
+   indicator on the Now Playing screen itself, so this steps aside whenever it's showing */
+#screen-content.showing-nowplaying ~ #mini-status::before,
+#screen-content.showing-nowplaying ~ #mini-status #mini-progress-thumb {
   opacity: 0;
 }
 
@@ -242,6 +242,11 @@ body {
    still more to slide to */
 #mini-status-text, #mini-status-album, #mini-status-artist {
   display: block;
+  /* an empty line has no content to establish a line box at all, so height/line-height
+     have to be explicit — otherwise a blank field collapses to 0 instead of staying
+     reserved */
+  height: 1.2em;
+  line-height: 1.2;
   overflow-x: auto;
   overflow-y: hidden;
   white-space: nowrap;
@@ -254,8 +259,9 @@ body {
 
 #mini-status-text { font-size: 0.78rem; opacity: 0.85; }
 
-#mini-status-album, #mini-status-artist { display: none; font-size: 0.68rem; opacity: 0.6; }
-#mini-status-album.visible, #mini-status-artist.visible { display: block; }
+/* always present (blank when that tag doesn't exist) — never collapsed, so the bar's
+   total height stays constant instead of shifting as metadata loads in */
+#mini-status-album, #mini-status-artist { font-size: 0.68rem; opacity: 0.6; }
 
 #locate-btn {
   flex: none;

@@ -108,29 +108,26 @@ function refreshEdgeFades() {
 
 miniStatusLineEls.forEach(el => el.addEventListener('scroll', () => updateEdgeFade(el)));
 
-// sets the banner to a single line — status messages (loading/error/resume-prompt) and
-// the bare filename before real metadata resolves. No auto-scroll — overflow just sits
-// there for the user to slide over themselves if they want to read it.
+// all 3 lines are always reserved (see CSS) so the banner's height never changes as
+// content loads in — a field with nothing to show is just a blank line, not collapsed.
+// Status messages (loading/error/resume-prompt) and the bare filename before real
+// metadata resolves only ever populate the first line; the other two stay blank.
 function setBannerText(text) {
   miniStatusTextEl.textContent = text;
   miniStatusTextEl.scrollLeft = 0;
   miniStatusAlbumEl.textContent = '';
-  miniStatusAlbumEl.classList.remove('visible');
   miniStatusArtistEl.textContent = '';
-  miniStatusArtistEl.classList.remove('visible');
   refreshEdgeFades();
 }
 
-// grows the banner to up to 3 lines (track / album / artist) once real embedded
-// metadata is available — only the fields that actually exist get a line
+// once real embedded metadata is available: track / album / artist, each field left
+// blank if that tag doesn't exist on this file
 function setBannerMetadata(title, album, artist) {
   miniStatusTextEl.textContent = title;
   miniStatusTextEl.scrollLeft = 0;
   miniStatusAlbumEl.textContent = album || '';
-  miniStatusAlbumEl.classList.toggle('visible', !!album);
   miniStatusAlbumEl.scrollLeft = 0;
   miniStatusArtistEl.textContent = artist || '';
-  miniStatusArtistEl.classList.toggle('visible', !!artist);
   miniStatusArtistEl.scrollLeft = 0;
   refreshEdgeFades();
 }
@@ -496,6 +493,9 @@ function buildWaveformBars() {
   }
   waveformBarEls = Array.from(npWaveformEl.children);
 }
+// built immediately (not lazily on first decode) so the waveform always shows as flat
+// dots rather than being blank while nothing has loaded yet
+buildWaveformBars();
 
 function updateWaveformProgress(pct) {
   if (!waveformBarEls.length) return;
@@ -506,16 +506,15 @@ function updateWaveformProgress(pct) {
 }
 
 function renderWaveform(peaks) {
-  buildWaveformBars();
   for (let i = 0; i < WAVEFORM_BARS; i++) {
     waveformBarEls[i].style.height = `${Math.max(6, peaks[i] * 100)}%`;
   }
   updateWaveformProgress(isFinite(audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0);
-  miniStatusEl.classList.add('waveform-ready');
 }
 
+// resets bars back to flat dots (CSS min-height) for the new track, while its own
+// waveform decodes in the background
 function resetWaveformUI() {
-  miniStatusEl.classList.remove('waveform-ready');
   for (const bar of waveformBarEls) { bar.style.height = ''; bar.classList.remove('played'); }
 }
 
