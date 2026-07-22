@@ -41,24 +41,6 @@
             </div>
           </div>
 
-          <div id="annotate-panel">
-            <div id="annotate-path"></div>
-            <div id="annotate-toggles">
-              <button id="tag-trash-btn" type="button" class="annotate-toggle">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <span>Trash</span>
-              </button>
-              <button id="tag-favorite-btn" type="button" class="annotate-toggle">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>
-                <span>Favorite</span>
-              </button>
-            </div>
-            <textarea id="annotate-note" placeholder="Notes…" rows="2"></textarea>
-            <input id="annotate-tag-input" type="text" placeholder="Add tag, press enter…" autocomplete="off" autocapitalize="off" spellcheck="false">
-            <div id="annotate-current-tags"></div>
-            <div id="annotate-suggested-label">Previously used</div>
-            <div id="annotate-suggested-tags"></div>
-          </div>
         </div>
       </div>
 
@@ -79,6 +61,31 @@
         <svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>
       </div>
       <div id="wheel-select" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <!-- full-screen annotate panel — deliberately outside #device, not constrained to the
+       simulated device screen, so there's room for a real note-taking experience -->
+  <div id="annotate-panel">
+    <div id="annotate-path"></div>
+    <div id="annotate-toggles">
+      <button id="tag-trash-btn" type="button" class="annotate-toggle">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Trash</span>
+      </button>
+      <button id="tag-favorite-btn" type="button" class="annotate-toggle">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6-5.4-3.1-5.4 3.1 1.3-6-4.6-4.1 6.1-.6z" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg>
+        <span>Favorite</span>
+      </button>
+    </div>
+    <textarea id="annotate-note" placeholder="Notes…"></textarea>
+    <input id="annotate-tag-input" type="text" placeholder="Add tag, press enter…" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div id="annotate-current-tags"></div>
+    <div id="annotate-suggested-label">Previously used</div>
+    <div id="annotate-suggested-tags"></div>
+    <div id="annotate-actions">
+      <button id="annotate-cancel-btn" type="button">Cancel</button>
+      <button id="annotate-save-btn" type="button">Save</button>
     </div>
   </div>
 

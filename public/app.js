@@ -18,7 +18,7 @@ const artworkEl = document.getElementById('artwork');
 const artworkBgEl = document.getElementById('artwork-bg');
 const wheelEl = document.getElementById('wheel');
 const wheelPlayBtn = document.getElementById('wheel-play');
-const nowPlayingViewEl = document.getElementById('nowplaying-view');
+const annotatePanelEl = document.getElementById('annotate-panel');
 const annotatePathEl = document.getElementById('annotate-path');
 const tagTrashBtn = document.getElementById('tag-trash-btn');
 const tagFavoriteBtn = document.getElementById('tag-favorite-btn');
@@ -26,6 +26,8 @@ const annotateNoteEl = document.getElementById('annotate-note');
 const annotateTagInputEl = document.getElementById('annotate-tag-input');
 const annotateCurrentTagsEl = document.getElementById('annotate-current-tags');
 const annotateSuggestedTagsEl = document.getElementById('annotate-suggested-tags');
+const annotateCancelBtn = document.getElementById('annotate-cancel-btn');
+const annotateSaveBtn = document.getElementById('annotate-save-btn');
 
 const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
@@ -445,33 +447,41 @@ async function fetchMetadata(file) {
 function showNowPlaying() { screenContentEl.classList.add('showing-nowplaying'); }
 function showBrowse() { screenContentEl.classList.remove('showing-nowplaying'); }
 
-// ---------- annotate panel: reorg-triage notes/tags for the current track, not music metadata ----------
+// ---------- annotate panel: reorg-triage notes/tags for a track, not music metadata ----------
+// Full-screen and outside #device on purpose — it covers the wheel too, so while it's open
+// the only way out is the explicit Save/Cancel buttons (nothing to disambiguate from Menu/
+// Select, since the wheel is physically unreachable underneath it).
+//
+// annotatingPath is captured once when the panel opens and used for every fetch/save call
+// below instead of the live currentTrackPath — if the track finishes and auto-advances while
+// you're mid-note, edits must still land on the file you were actually describing, not
+// whatever started playing next.
 
-function toggleAnnotatePanel() {
-  nowPlayingViewEl.classList.contains('annotating') ? closeAnnotatePanel() : openAnnotatePanel();
-}
+let annotatingPath = null;
 
 function closeAnnotatePanel() {
-  nowPlayingViewEl.classList.remove('annotating');
+  annotatePanelEl.classList.remove('open');
+  annotatingPath = null;
 }
 
 async function openAnnotatePanel() {
   if (!currentTrackPath) return;
-  nowPlayingViewEl.classList.add('annotating');
-  annotatePathEl.textContent = currentTrackPath;
+  annotatingPath = currentTrackPath;
+  annotatePanelEl.classList.add('open');
+  annotatePathEl.textContent = annotatingPath;
 
   const token = ++annotationLoadToken;
+  const path = annotatingPath;
   currentAnnotation = { note: '', tags: [] };
   renderAnnotateUI([]); // clear stale UI immediately, suggestions fill in once fetched
 
   try {
-    const res = await fetch(`${WORKER_URL}/annotation?path=${encodeURIComponent(currentTrackPath)}`);
+    const res = await fetch(`${WORKER_URL}/annotation?path=${encodeURIComponent(path)}`);
     const data = await res.json();
-    if (token !== annotationLoadToken) return; // a newer open/track-change happened, discard
+    if (token !== annotationLoadToken) return; // a newer open happened, discard
     currentAnnotation = { note: data.note || '', tags: Array.isArray(data.tags) ? data.tags : [] };
   } catch (e) {
-    // leave currentAnnotation blank — worth seeing this fail loudly during early use
-    if (token === annotationLoadToken) annotatePathEl.textContent = `${currentTrackPath} (failed to load: ${e.message})`;
+    if (token === annotationLoadToken) annotatePathEl.textContent = `${path} (failed to load: ${e.message})`;
   }
 
   suggestedTagsCache = [];
@@ -521,31 +531,32 @@ function renderAnnotateUI(suggestedTags) {
   });
 }
 
+// all of these just stage local edits — nothing reaches the server until Save is tapped
 function addTag(rawTag) {
   const tag = rawTag.trim().toLowerCase();
   if (!tag || currentAnnotation.tags.includes(tag)) return;
   currentAnnotation.tags.push(tag);
   if (!suggestedTagsCache.includes(tag)) suggestedTagsCache.push(tag);
   renderAnnotateUI(suggestedTagsCache);
-  saveAnnotation();
 }
 
 function removeTag(tag) {
   currentAnnotation.tags = currentAnnotation.tags.filter(t => t !== tag);
   renderAnnotateUI(suggestedTagsCache);
-  saveAnnotation();
 }
 
 async function saveAnnotation() {
-  if (!currentTrackPath) return;
+  const path = annotatingPath;
+  if (!path) return;
   try {
     await fetch(`${WORKER_URL}/annotation`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentTrackPath, note: currentAnnotation.note, tags: currentAnnotation.tags }),
+      body: JSON.stringify({ path, note: currentAnnotation.note, tags: currentAnnotation.tags }),
     });
   } catch (e) {
-    annotatePathEl.textContent = `${currentTrackPath} (save failed: ${e.message})`;
+    annotatePathEl.textContent = `${path} (save failed: ${e.message})`;
+    throw e; // let the Save button know it didn't actually save
   }
 }
 
@@ -555,15 +566,30 @@ tagTrashBtn.addEventListener('click', () => {
 tagFavoriteBtn.addEventListener('click', () => {
   currentAnnotation.tags.includes('favorite') ? removeTag('favorite') : addTag('favorite');
 });
-annotateNoteEl.addEventListener('blur', () => {
+annotateNoteEl.addEventListener('input', () => {
   currentAnnotation.note = annotateNoteEl.value;
-  saveAnnotation();
 });
 annotateTagInputEl.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   e.preventDefault();
   addTag(annotateTagInputEl.value);
   annotateTagInputEl.value = '';
+});
+
+annotateCancelBtn.addEventListener('click', () => closeAnnotatePanel());
+annotateSaveBtn.addEventListener('click', async () => {
+  const originalLabel = annotateSaveBtn.textContent;
+  annotateSaveBtn.textContent = 'Saving…';
+  annotateSaveBtn.disabled = true;
+  try {
+    await saveAnnotation();
+    closeAnnotatePanel();
+  } catch (e) {
+    // saveAnnotation() already surfaced the error in #annotate-path — leave the panel open
+  } finally {
+    annotateSaveBtn.textContent = originalLabel;
+    annotateSaveBtn.disabled = false;
+  }
 });
 
 function flatten(node, acc) {
@@ -786,7 +812,8 @@ function togglePlayPause() {
 }
 
 function doMenu() {
-  if (nowPlayingViewEl.classList.contains('annotating')) { closeAnnotatePanel(); return; }
+  // the annotate panel covers the wheel entirely while open, so there's no case where
+  // Menu is reachable during annotation — Save/Cancel are the only way out of it
   if (screenContentEl.classList.contains('showing-nowplaying')) { showBrowse(); return; }
   if (searchQuery) { searchQuery = ''; searchEl.value = ''; render(); return; }
   if (path.length) { path = path.slice(0, -1); render(); }
@@ -880,7 +907,7 @@ wheelEl.addEventListener('pointerup', (e) => {
   if (totalMove >= 10) return; // was a drag, not a tap
   const zone = zoneFromPoint(e.clientX, e.clientY);
   if (zone === 'select') {
-    if (screenContentEl.classList.contains('showing-nowplaying')) { toggleAnnotatePanel(); }
+    if (screenContentEl.classList.contains('showing-nowplaying')) { openAnnotatePanel(); }
     else { activateCursor(); }
   }
   else if (zone === 'menu') doMenu();

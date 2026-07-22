@@ -10,12 +10,15 @@
 - **Now Playing screen** — full-bleed, never-cropped artwork (blurred backdrop + contained foreground image), gradient scrim behind the track info/scrub bar, wheel-drag scrubs the track instead of scrolling a list while this screen is open
 - **Embedded metadata** — title/artist/artwork read directly from MP3 (ID3v2), FLAC (Vorbis comments + picture block), and M4A (MP4 atoms) files, via custom-built parsers (no third-party library — see `README.md` for why)
 - **PWA support** — Add to Home Screen for a true fullscreen app with no Safari chrome
+- **Reorg-triage annotations** — while listening, tap Select on the Now Playing screen to open a full-screen panel (outside the simulated device frame, so there's real room to work) and attach freeform tags (type-to-add, tap-to-reuse previously-used tags) plus a note to that file. Trash and Favorite get dedicated one-tap toggles that are really just shortcuts for the tags `"trash"`/`"favorite"` — one unified tag list underneath. Explicit Save/Cancel buttons — nothing autosaves. This is a side notebook for the eventual library reorg, not music metadata and not edits to the files themselves; stored in a Cloudflare KV namespace via the Worker (`GET/PUT /annotation`, bulk `GET /annotations` for reviewing everything later on your own machine).
 
 ## Wanted / planned
 
 - **Lock screen & Control Center controls** (MediaSession API) — play/pause/skip and track info from the iPhone lock screen, Control Center, AirPods, and car displays, without opening the app. Deferred a few times in favor of other work; no code written yet.
 
 - **Privacy / access gate** — the deployed site is currently public to anyone with the link. A Cloudflare Access login gate (free, gates the Pages URL behind an email/OTP or Google/GitHub login) was scoped but never set up.
+
+- **Protect the annotation write endpoint** — `PUT /annotation` currently has no auth check, so anyone who found the Worker URL could write arbitrary notes/tags into the KV store. Not a new exposure on top of the site already being fully public and readable, but it's now writable too, which is a step further. Worth fixing alongside (or as part of) the privacy/access gate above.
 
 - **Metadata editing** — edit title/artist/album for individual tracks, and bulk-edit multiple files at once. Design direction settled on but not yet built:
   - A fast **overrides store** (Cloudflare KV via the Worker) holds edits keyed by file path. The app prefers an override over the file's actual embedded tag when displaying, so edits are instant, safe, and cheap to bulk-apply — the real audio files are never touched by this layer.

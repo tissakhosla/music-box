@@ -283,20 +283,21 @@ body {
 
 #annotate-panel {
   display: none;
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 5;
+  z-index: 100;
   flex-direction: column;
   gap: 0.7rem;
-  padding: calc(1rem + env(safe-area-inset-top)) 1rem 1rem;
+  padding: calc(1.2rem + env(safe-area-inset-top)) 1.2rem calc(1.2rem + env(safe-area-inset-bottom));
   background: #161616;
   overflow-y: auto;
   color: #eee;
+  font-family: monospace;
 }
-#nowplaying-view.annotating #annotate-panel { display: flex; }
+#annotate-panel.open { display: flex; }
 
 #annotate-path {
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   opacity: 0.5;
   text-align: center;
   overflow-wrap: break-word;
@@ -326,13 +327,15 @@ body {
 
 #annotate-note {
   width: 100%;
+  flex: 1;
+  min-height: 6rem;
   background: #222;
   border: 1px solid #444;
   border-radius: 6px;
   color: #eee;
   font-family: monospace;
   font-size: 16px; /* prevents iOS auto-zoom */
-  padding: 0.5em 0.6em;
+  padding: 0.6em 0.7em;
   resize: none;
 }
 
@@ -370,6 +373,32 @@ body {
 .tag-chip .remove { opacity: 0.6; }
 
 #annotate-suggested-label { font-size: 0.65rem; opacity: 0.5; margin-top: 0.3rem; }
+
+#annotate-actions {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+#annotate-actions button {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.95rem;
+  padding: 0.75em;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#annotate-cancel-btn {
+  background: none;
+  border: 1px solid #444;
+  color: #eee;
+}
+#annotate-save-btn {
+  background: #eee;
+  border: 1px solid #eee;
+  color: #161616;
+  font-weight: 600;
+}
 
 /* ---------- click wheel ---------- */
 
