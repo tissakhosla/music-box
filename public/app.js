@@ -8,8 +8,6 @@ const screenContentEl = document.getElementById('screen-content');
 const miniStatusEl = document.getElementById('mini-status');
 const miniStatusBtnEl = document.getElementById('mini-status-btn');
 const miniStatusTextEl = document.getElementById('mini-status-text');
-const npTitleEl = document.getElementById('np-title');
-const npArtistEl = document.getElementById('np-artist');
 const npTimeMarkersEl = document.getElementById('np-time-markers');
 const timeCurrentEl = document.getElementById('time-current');
 const timeDurationEl = document.getElementById('time-duration');
@@ -102,21 +100,18 @@ function setBannerText(text) {
   refreshMarquee();
 }
 
-// status messages (loading/error/resume-prompt) show on both the banner and the
-// full-screen title/artist — these aren't "the track name", they're operational feedback
+// status messages (loading/error/resume-prompt) — these aren't "the track name", they're
+// operational feedback, so they only show on the mini-status banner; the full-screen
+// artwork view doesn't need its own copy of the same text
 function setNowPlaying(title, artist) {
   setBannerText(artist ? `${title} — ${artist}` : title);
-  npTitleEl.textContent = title;
-  npArtistEl.textContent = artist || '';
 }
 
-// once a track is actually playing: banner shows the real track name (updated again with
-// title/artist once embedded metadata resolves), but the full-screen title/artist stay
-// blank — that screen is artwork-focused by design
+// once a track is actually playing, the banner shows the real track name (updated again
+// with title/artist once embedded metadata resolves) — the full-screen view stays
+// artwork-only, no redundant text copy
 function setPlayingState(file) {
   setBannerText(file.name);
-  npTitleEl.textContent = '';
-  npArtistEl.textContent = '';
 }
 
 function setArtwork(url) {

@@ -293,20 +293,6 @@ body {
   color: #f2f2f2;
 }
 
-#np-title {
-  width: 100%;
-  text-align: center;
-  font-size: clamp(0.95rem, 4vw, 1.15rem);
-  overflow-wrap: break-word;
-}
-#np-artist {
-  width: 100%;
-  text-align: center;
-  font-size: 0.85rem;
-  opacity: 0.75;
-  overflow-wrap: break-word;
-}
-
 /* only shown while actively scrubbing (drag on the artwork, or wheel-rotate) —
    collapses to zero height rather than display:none so it can fade in/out smoothly */
 #np-time-markers {
