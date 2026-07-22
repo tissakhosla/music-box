@@ -146,6 +146,24 @@ function setPlayingState(file) {
   setBannerText(file.name);
 }
 
+// object-fit: contain lets a small image scale up to fill the box, but the <img>
+// element's own box still spans the full 100%x100% — border-radius rounds THAT box, so
+// with any letterboxing (aspect ratio mismatch) the rounded corners land on empty space
+// instead of the visible picture. Sizing the element itself to the actual rendered
+// dimensions fixes it: the box then exactly hugs the picture, and flex centering on
+// #artwork-wrap keeps it centered in the area either way.
+function fitArtworkToWrap() {
+  if (!artworkEl.naturalWidth || !artworkEl.naturalHeight) return;
+  const wrapW = artworkWrapEl.clientWidth;
+  const wrapH = artworkWrapEl.clientHeight;
+  if (!wrapW || !wrapH) return;
+  const scale = Math.min(wrapW / artworkEl.naturalWidth, wrapH / artworkEl.naturalHeight);
+  artworkEl.style.width = `${artworkEl.naturalWidth * scale}px`;
+  artworkEl.style.height = `${artworkEl.naturalHeight * scale}px`;
+}
+artworkEl.addEventListener('load', fitArtworkToWrap);
+window.addEventListener('resize', fitArtworkToWrap);
+
 function setArtwork(url) {
   artworkWrapEl.classList.remove('loading');
   if (url) {
