@@ -28,6 +28,7 @@ const annotateCancelBtn = document.getElementById('annotate-cancel-btn');
 const annotateSaveBtn = document.getElementById('annotate-save-btn');
 const shuffleAllBtn = document.getElementById('shuffle-all-btn');
 const locateBtn = document.getElementById('locate-btn');
+const npWaveformEl = document.getElementById('np-waveform');
 
 const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
@@ -35,6 +36,7 @@ const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM
 const SEARCH_LIMIT = 300;
 const RESUME_SAVE_INTERVAL_MS = 5000;
 const DEGREES_PER_STEP = 20; // wheel drag distance per list move, mimics the physical click wheel's detents
+const WAVEFORM_BARS = 50;
 
 let root = null;
 let allFiles = [];
@@ -53,6 +55,8 @@ let shuffleMode = false;
 let currentAnnotation = { note: '', tags: [] };
 let suggestedTagsCache = [];
 let annotationLoadToken = 0; // guards against a slow fetch resolving after the track changed
+const waveformCache = new Map(); // track path -> Float32Array of per-bar peak levels (0-1)
+let waveformBarEls = [];
 
 function fmtTime(sec) {
   if (!isFinite(sec)) return '0:00';
@@ -77,6 +81,7 @@ function updateScrubUI() {
   document.documentElement.style.setProperty('--progress', `${pct}%`);
   timeCurrentEl.textContent = fmtTime(audio.currentTime);
   timeDurationEl.textContent = fmtTime(audio.duration);
+  updateWaveformProgress(pct);
 }
 
 function refreshMarquee() {
@@ -431,6 +436,89 @@ async function setFallbackArtwork(forPath) {
     if (data.url) setArtwork(data.url); else artworkWrapEl.classList.remove('loading');
   } catch (e) {
     if (currentTrackPath === forPath) artworkWrapEl.classList.remove('loading');
+  }
+}
+
+// ---------- waveform, doubling as the progress bar ----------
+//
+// Decoding is done on a throwaway OfflineAudioContext, which never touches the browser's
+// live audio session or the playing <audio> element in any way — unlike a regular
+// AudioContext wired up with createMediaElementSource (what the EQ used to do), which
+// rerouted actual playback through the Web Audio graph and went silent when the context
+// failed to resume. This version can only ever affect what these bars look like.
+function decodeArrayBufferForWaveform(arrayBuffer) {
+  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const ctx = new Ctx(1, 1, 44100); // dummy params — only decodeAudioData() is ever used, never rendered
+  return ctx.decodeAudioData(arrayBuffer);
+}
+
+function buildWaveformBars() {
+  if (waveformBarEls.length) return;
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'wf-bar';
+    npWaveformEl.appendChild(bar);
+  }
+  waveformBarEls = Array.from(npWaveformEl.children);
+}
+
+function updateWaveformProgress(pct) {
+  if (!waveformBarEls.length) return;
+  const playedCount = Math.round((pct / 100) * WAVEFORM_BARS);
+  for (let i = 0; i < waveformBarEls.length; i++) {
+    waveformBarEls[i].classList.toggle('played', i < playedCount);
+  }
+}
+
+function renderWaveform(peaks) {
+  buildWaveformBars();
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    waveformBarEls[i].style.height = `${Math.max(6, peaks[i] * 100)}%`;
+  }
+  updateWaveformProgress(isFinite(audio.duration) ? (audio.currentTime / audio.duration) * 100 : 0);
+  miniStatusEl.classList.add('waveform-ready');
+}
+
+function resetWaveformUI() {
+  miniStatusEl.classList.remove('waveform-ready');
+  for (const bar of waveformBarEls) { bar.style.height = ''; bar.classList.remove('played'); }
+}
+
+function computeWaveformPeaks(audioBuffer) {
+  const data = audioBuffer.getChannelData(0);
+  const blockSize = Math.max(1, Math.floor(data.length / WAVEFORM_BARS));
+  const peaks = new Float32Array(WAVEFORM_BARS);
+  for (let i = 0; i < WAVEFORM_BARS; i++) {
+    let max = 0;
+    const start = i * blockSize;
+    const end = Math.min(data.length, start + blockSize);
+    for (let j = start; j < end; j++) {
+      const v = Math.abs(data[j]);
+      if (v > max) max = v;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}
+
+// fetches its own separate temp link and decodes the whole file to build a real
+// peak-per-segment waveform — cached per track so replays/revisits are instant
+async function loadWaveformForCurrentTrack(path) {
+  if (waveformCache.has(path)) {
+    if (currentTrackPath === path) renderWaveform(waveformCache.get(path));
+    return;
+  }
+  try {
+    const url = await streamUrlFor({ path });
+    const res = await fetch(url);
+    const arrayBuf = await res.arrayBuffer();
+    const decoded = await decodeArrayBufferForWaveform(arrayBuf);
+    const peaks = computeWaveformPeaks(decoded);
+    waveformCache.set(path, peaks);
+    if (currentTrackPath === path) renderWaveform(peaks);
+  } catch (e) {
+    // couldn't build a waveform for this track — the mini-status border-bar just
+    // stays put as the progress indicator instead, not fatal
   }
 }
 
@@ -825,6 +913,8 @@ async function playFile(file, resumeTime = 0) {
 
   setArtwork(null);
   setNowPlaying(`${file.name} — loading…`, '');
+  resetWaveformUI();
+  loadWaveformForCurrentTrack(file.path);
   try {
     const url = await streamUrlFor(file);
     setPlayingState(file);
