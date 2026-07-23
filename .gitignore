@@ -4,3 +4,6 @@ files.json
 .wrangler
 .dev.vars*
 !.dev.vars.example
+__pycache__/
+*.pyc
+downloader/rclone.conf*

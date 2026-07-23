@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Music Box — YouTube Importer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="login-overlay">
+    <form id="login-card" class="panel">
+      <h2>Music Box Importer</h2>
+      <input id="login-password" type="password" placeholder="password" autocomplete="current-password" autofocus>
+      <div id="login-error"></div>
+      <button type="submit" class="primary">Unlock</button>
+    </form>
+  </div>
+
+  <div id="app" class="wrap hidden">
+    <h1>YouTube → Dropbox Importer</h1>
+
+    <div id="resolve-bar" class="row panel">
+      <input id="url-input" type="text" placeholder="Paste a YouTube video or playlist URL…">
+      <button id="resolve-btn" class="primary">Resolve</button>
+    </div>
+    <div id="status-msg"></div>
+
+    <div id="bulk-panel" class="panel hidden">
+      <div class="row stretch">
+        <div class="field">
+          <label for="dest-folder">Dropbox destination folder</label>
+          <input id="dest-folder" type="text" placeholder="YouTube Downloads">
+        </div>
+      </div>
+
+      <div class="row">
+        <img id="bulk-artwork-preview" class="hidden" alt="">
+        <button id="bulk-artwork-btn">Set artwork for selected…</button>
+        <input id="bulk-artwork-input" type="file" accept="image/*" class="hidden">
+        <button id="bulk-apply-btn">Apply Artist/Album/Genre/Year to selected</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>Artist</label><input id="bulk-artist" type="text" placeholder="(leave blank to skip)"></div>
+        <div class="field"><label>Album</label><input id="bulk-album" type="text" placeholder="(leave blank to skip)"></div>
+        <div class="field"><label>Genre</label><input id="bulk-genre" type="text" placeholder="(leave blank to skip)"></div>
+        <div class="field"><label>Year</label><input id="bulk-year" type="text" placeholder="(leave blank to skip)"></div>
+      </div>
+
+      <div class="row">
+        <button id="select-all-btn">Select all</button>
+        <button id="select-none-btn">Select none</button>
+        <span style="flex:1"></span>
+        <button id="download-btn" class="primary">Download &amp; Save Selected</button>
+      </div>
+      <div id="summary"></div>
+    </div>
+
+    <div id="tracks"></div>
+  </div>
+
+  <button id="theme-btn" type="button">light</button>
+
+  <script src="app.js"></script>
+</body>
+</html>
