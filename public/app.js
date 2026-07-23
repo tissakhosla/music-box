@@ -1075,3 +1075,13 @@ fetch('files.json')
     if (currentTrackPath) currentFileIndex = currentFiles.findIndex(f => f.path === currentTrackPath);
   })
   .catch(() => { listingEl.textContent = 'Failed to load files.json — did you run build-index.js?'; });
+
+// Registering a service worker (even a no-op passthrough) is required for Chrome
+// on Android to treat this as an installable PWA — otherwise "Add to Home Screen"
+// just makes a bookmark shortcut that opens in a normal browser tab instead of
+// respecting manifest.json's fullscreen/standalone display mode.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
