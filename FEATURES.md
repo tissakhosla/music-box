@@ -9,7 +9,7 @@
 - **iPod Classic–styled UI** — device frame, functional click wheel (drag to scroll the current list, tap zones for Menu/Previous/Next/Play-Pause/Select), flat dark monospace theme
 - **Now Playing screen** — full-bleed, never-cropped artwork (blurred backdrop + contained foreground image), gradient scrim behind the track info/scrub bar, wheel-drag scrubs the track instead of scrolling a list while this screen is open
 - **Embedded metadata** — title/artist/artwork read directly from MP3 (ID3v2), FLAC (Vorbis comments + picture block), and M4A (MP4 atoms) files, via custom-built parsers (no third-party library — see `README.md` for why)
-- **PWA support** — Add to Home Screen for a true fullscreen app with no Safari chrome
+- **PWA support** — Add to Home Screen for a true fullscreen app with no browser chrome, on both iOS (Safari) and Android (Chrome, via `manifest.json` + a minimal service worker)
 - **Reorg-triage annotations** — while listening, tap Select on the Now Playing screen to open a full-screen panel (outside the simulated device frame, so there's real room to work) and attach freeform tags (type-to-add, tap-to-reuse previously-used tags) plus a note to that file. Trash and Favorite get dedicated one-tap toggles that are really just shortcuts for the tags `"trash"`/`"favorite"` — one unified tag list underneath. Explicit Save/Cancel buttons — nothing autosaves. This is a side notebook for the eventual library reorg, not music metadata and not edits to the files themselves; stored in a Cloudflare KV namespace via the Worker (`GET/PUT /annotation`, bulk `GET /annotations` for reviewing everything later on your own machine).
 
 ## Wanted / planned

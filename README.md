@@ -1,10 +1,14 @@
 # Music Box
 
-A fullscreen, iPod Classic–styled music player that streams your entire Dropbox account. Built to run as a home-screen web app on iPhone (Safari "Add to Home Screen"), with a functional click wheel, full-bleed album art, and metadata read directly from your files' embedded tags.
+A fullscreen, iPod Classic–styled music player that streams your entire Dropbox account. Built to run as a home-screen web app on iPhone (Safari "Add to Home Screen") or Android (Chrome "Add to Home Screen" / "Install app"), with a functional click wheel, full-bleed album art, and metadata read directly from your files' embedded tags.
 
 ## Usage
 
-Open the deployed URL in Safari, then **Share → Add to Home Screen** and launch it from the icon for a true fullscreen experience (no address bar). Browse your Dropbox folder tree, search across it (matches folder names too, not just filenames), tap a track to play. The click wheel works like the real thing: drag anywhere on the ring to scroll the current list, tap Menu/Previous/Next/Play-Pause/Select to trigger those actions. While Now Playing is open, dragging the wheel scrubs the track instead of scrolling a list.
+**iPhone:** open the deployed URL in Safari, then **Share → Add to Home Screen** and launch it from the icon for a true fullscreen experience (no address bar).
+
+**Android:** open the deployed URL in Chrome, then use the **⋮ menu → Add to Home Screen** (or the "Install app" prompt if Chrome offers it) and launch from the icon — `manifest.json` + a minimal service worker (`sw.js`, network-only, no caching) make this a real installable PWA rather than a plain bookmark shortcut, launching `display: fullscreen` with no address bar or system status bar.
+
+Either way: browse your Dropbox folder tree, search across it (matches folder names too, not just filenames), tap a track to play. The click wheel works like the real thing: drag anywhere on the ring to scroll the current list, tap Menu/Previous/Next/Play-Pause/Select to trigger those actions. While Now Playing is open, dragging the wheel scrubs the track instead of scrolling a list.
 
 Playback position and the current track persist across reloads (`localStorage`), so reopening the app after iOS kills it in the background picks up roughly where you left off.
 
@@ -16,6 +20,9 @@ Playback position and the current track persist across reloads (`localStorage`),
 | `public/style.css` | All styling — flat dark monospace theme, custom click wheel, custom scrub bar, blurred-backdrop artwork |
 | `public/app.js` | All client logic: folder browsing, search, playback, the click wheel's drag/tap gesture handling, and metadata parsing (ID3v2/FLAC/MP4, written from scratch — see below) |
 | `public/files.json` | Generated folder/file tree the browser reads to render the file explorer — **not committed** (gitignored, same as `audio_files.txt`), regenerate with `node build-index.js` |
+| `public/manifest.json` | Web App Manifest — name, icons, `display: fullscreen` — what makes Android Chrome's "Add to Home Screen" a real install instead of a bookmark shortcut |
+| `public/sw.js` | Minimal service worker (network-only passthrough, no caching) — its only job is satisfying Chrome's installability requirement for a registered service worker |
+| `public/icons/` | Click-wheel glyph icons (192/512px + iOS apple-touch-icon) referenced by `manifest.json` and `index.html` |
 | `build-index.js` | Converts `audio_files.txt` (flat list of Dropbox paths) into the nested `public/files.json` tree |
 | `audio_files.txt` | Flat list of every audio file path in the Dropbox account, one per line — **not committed** (contains your private file listing), produced via `rclone lsf -R --files-only dropbox:` (or similar) |
 | `worker/worker.js` | Cloudflare Worker — proxies Dropbox: exchanges a stored refresh token for a short-lived access token, then returns a temporary streaming URL for a given file path via `GET /stream?path=...` |
