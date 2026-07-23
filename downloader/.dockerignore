@@ -1,6 +1,0 @@
-__pycache__
-*.pyc
-.git
-*.md
-rclone.conf
-.env

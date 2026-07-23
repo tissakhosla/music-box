@@ -20,7 +20,6 @@ Playback position and the current track persist across reloads (`localStorage`),
 | `audio_files.txt` | Flat list of every audio file path in the Dropbox account, one per line — **not committed** (contains your private file listing), produced via `rclone lsf -R --files-only dropbox:` (or similar) |
 | `worker/worker.js` | Cloudflare Worker — proxies Dropbox: exchanges a stored refresh token for a short-lived access token, then returns a temporary streaming URL for a given file path via `GET /stream?path=...` |
 | `worker/wrangler.toml` | Worker config — deployed as `music-box-api` |
-| `downloader/` | Separate service (Python/FastAPI on Cloud Run, not Cloudflare) — paste a YouTube video/playlist URL, review and edit metadata + cover art per track or in bulk, and save straight into a Dropbox inbox folder via `yt-dlp` + `mutagen` + `rclone`. See `downloader/README.md`. |
 
 ### Metadata parsing
 
