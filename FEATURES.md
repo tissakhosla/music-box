@@ -11,10 +11,9 @@
 - **Embedded metadata** — title/artist/artwork read directly from MP3 (ID3v2), FLAC (Vorbis comments + picture block), and M4A (MP4 atoms) files, via custom-built parsers (no third-party library — see `README.md` for why)
 - **PWA support** — Add to Home Screen for a true fullscreen app with no browser chrome, on both iOS (Safari) and Android (Chrome, via `manifest.json` + a minimal service worker)
 - **Reorg-triage annotations** — while listening, tap Select on the Now Playing screen to open a full-screen panel (outside the simulated device frame, so there's real room to work) and attach freeform tags (type-to-add, tap-to-reuse previously-used tags) plus a note to that file. Trash and Favorite get dedicated one-tap toggles that are really just shortcuts for the tags `"trash"`/`"favorite"` — one unified tag list underneath. Explicit Save/Cancel buttons — nothing autosaves. This is a side notebook for the eventual library reorg, not music metadata and not edits to the files themselves; stored in a Cloudflare KV namespace via the Worker (`GET/PUT /annotation`, bulk `GET /annotations` for reviewing everything later on your own machine).
+- **Lock screen, Control Center, AirPods, and CarPlay controls** (`public/js/media-session.js`, MediaSession API) — track title/artist/album/artwork and working Play/Pause/Previous/Next/Seek controls show up anywhere the OS surfaces "what's playing," without opening the app — including a car's CarPlay "Now Playing" screen when the phone is connected. Note this is transport control only, not a browsable library on the CarPlay screen itself — that would require a separate native iOS app with Apple's CarPlay entitlement, which is not achievable from a web app.
 
 ## Wanted / planned
-
-- **Lock screen & Control Center controls** (MediaSession API) — play/pause/skip and track info from the iPhone lock screen, Control Center, AirPods, and car displays, without opening the app. Deferred a few times in favor of other work; no code written yet.
 
 - **Privacy / access gate** — the deployed site is currently public to anyone with the link. A Cloudflare Access login gate (free, gates the Pages URL behind an email/OTP or Google/GitHub login) was scoped but never set up.
 

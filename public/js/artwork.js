@@ -3,6 +3,7 @@
 import { el } from './dom.js';
 import { getNasaFallbackImage } from './api.js';
 import { setBannerText } from './banner.js';
+import { setArtwork as setMediaSessionArtwork } from './media-session.js';
 
 export function setArtwork(url) {
   el.artworkWrap.classList.remove('loading');
@@ -13,6 +14,7 @@ export function setArtwork(url) {
     el.artwork.removeAttribute('src');
     el.artworkWrap.classList.remove('has-art');
   }
+  setMediaSessionArtwork(url);
 }
 
 // object-fit: contain lets a small image scale up to fill the box, but the <img>

@@ -6,6 +6,7 @@ import { getStreamUrl } from './api.js';
 import { readTags } from './metadata/index.js';
 import { setBannerMetadata } from './banner.js';
 import { setArtwork, setFallbackArtwork, showArtworkDebug } from './artwork.js';
+import { setTrackInfo } from './media-session.js';
 
 // `isCurrent(path)` lets the caller veto banner/artwork updates if a different
 // track started playing while this was still loading.
@@ -38,6 +39,7 @@ export async function loadTrackMetadata(file, isCurrent) {
 
   if (tags.title || tags.album || tags.artist) {
     setBannerMetadata(tags.title || file.name, tags.album, tags.artist);
+    setTrackInfo({ title: tags.title || file.name, artist: tags.artist, album: tags.album });
   }
   if (tags.picture) {
     const blob = new Blob([tags.picture.data], { type: tags.picture.format });

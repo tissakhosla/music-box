@@ -43,6 +43,7 @@ Plain ES modules, no build step — each file is a single, focused concern with 
 | `waveform.js` | Waveform bars, which double as the progress bar |
 | `banner.js` | Mini-status text/edge-fades and the shared scrub-progress UI |
 | `track-metadata.js` | Orchestrates loading a track's tags + artwork once playback starts |
+| `media-session.js` | Surfaces track info + transport controls to the OS — lock screen, Control Center, AirPods, and a car's CarPlay "Now Playing" screen |
 | `player.js` | Playback engine — the `<audio>` element, queue, resume, shuffle |
 | `browse.js` | Folder browsing, search, the wheel's cursor position |
 | `annotate.js` | The reorg-triage notes/tags panel |

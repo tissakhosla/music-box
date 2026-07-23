@@ -11,6 +11,7 @@ import { setNowPlaying, setPlayingState, updateScrubUI } from './banner.js';
 import { resetWaveformUI, loadWaveformForTrack } from './waveform.js';
 import { loadTrackMetadata } from './track-metadata.js';
 import { getStreamUrl } from './api.js';
+import * as mediaSession from './media-session.js';
 
 const PLAY_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M8 5l12 7-12 7z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>';
@@ -112,6 +113,10 @@ export async function playFile(file, resumeTime = 0) {
   try {
     const url = await getStreamUrl(file.path);
     setPlayingState(file);
+    // real title/artist/album follow once tags resolve (track-metadata.js calls
+    // mediaSession.setTrackInfo itself) — this just seeds the filename immediately,
+    // same as the banner does, so lock screen/CarPlay never show stale info
+    mediaSession.setTrackInfo({ title: file.name });
     el.audio.src = url;
     if (resumeTime > 0) {
       const onLoaded = () => {
@@ -178,11 +183,22 @@ export function seekBy(steps) {
   seekTo(el.audio.currentTime + steps * stepSeconds);
 }
 
-el.audio.addEventListener('play', () => { el.wheelPlayBtn.innerHTML = PAUSE_ICON; });
-el.audio.addEventListener('pause', () => { el.wheelPlayBtn.innerHTML = PLAY_ICON; saveResume(); });
+el.audio.addEventListener('play', () => {
+  el.wheelPlayBtn.innerHTML = PAUSE_ICON;
+  mediaSession.setPlaybackState('playing');
+});
+el.audio.addEventListener('pause', () => {
+  el.wheelPlayBtn.innerHTML = PLAY_ICON;
+  mediaSession.setPlaybackState('paused');
+  saveResume();
+});
 el.audio.addEventListener('ended', playNext);
+el.audio.addEventListener('loadedmetadata', () => {
+  mediaSession.setPositionState({ duration: el.audio.duration, position: el.audio.currentTime, playbackRate: el.audio.playbackRate });
+});
 el.audio.addEventListener('timeupdate', () => {
   updateScrubUI();
+  mediaSession.setPositionState({ duration: el.audio.duration, position: el.audio.currentTime, playbackRate: el.audio.playbackRate });
   const now = Date.now();
   if (now - lastResumeSave > RESUME_SAVE_INTERVAL_MS) {
     lastResumeSave = now;
@@ -191,3 +207,13 @@ el.audio.addEventListener('timeupdate', () => {
 });
 window.addEventListener('pagehide', saveResume);
 el.shuffleAllBtn.addEventListener('click', toggleShuffleAll);
+
+// makes the OS-level transport controls (lock screen, Control Center, AirPods,
+// a car's CarPlay "Now Playing" screen) actually control this player
+mediaSession.registerActionHandlers({
+  play: () => el.audio.play(),
+  pause: () => el.audio.pause(),
+  previoustrack: playPrev,
+  nexttrack: playNext,
+  seekto: (details) => { if (details.seekTime != null) seekTo(details.seekTime); },
+});
