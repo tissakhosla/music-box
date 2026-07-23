@@ -18,7 +18,7 @@ Playback position and the current track persist across reloads (`localStorage`),
 |------|------|
 | `public/index.html` | Page structure — device frame, screen (browse/search or Now Playing), click wheel |
 | `public/style.css` | All styling — flat dark monospace theme, custom click wheel, custom scrub bar, blurred-backdrop artwork |
-| `public/app.js` | All client logic: folder browsing, search, playback, the click wheel's drag/tap gesture handling, and metadata parsing (ID3v2/FLAC/MP4, written from scratch — see below) |
+| `public/js/` | Client logic as ES modules (loaded via `<script type="module" src="js/main.js">`, no bundler) — see below |
 | `public/files.json` | Generated folder/file tree the browser reads to render the file explorer — **not committed** (gitignored, same as `audio_files.txt`), regenerate with `node build-index.js` |
 | `public/manifest.json` | Web App Manifest — name, icons, `display: fullscreen` — what makes Android Chrome's "Add to Home Screen" a real install instead of a bookmark shortcut |
 | `public/sw.js` | Minimal service worker (network-only passthrough, no caching) — its only job is satisfying Chrome's installability requirement for a registered service worker |
@@ -28,13 +28,33 @@ Playback position and the current track persist across reloads (`localStorage`),
 | `worker/worker.js` | Cloudflare Worker — proxies Dropbox: exchanges a stored refresh token for a short-lived access token, then returns a temporary streaming URL for a given file path via `GET /stream?path=...` |
 | `worker/wrangler.toml` | Worker config — deployed as `music-box-api` |
 
-### Metadata parsing
+### `public/js/` module layout
 
-`app.js` reads embedded track metadata (title/artist/artwork) directly in the browser via `fetch()` + `ArrayBuffer` — no third-party library. This replaced an initial attempt using `jsmediatags`, which turned out to rely on a legacy XHR technique (`overrideMimeType('text/plain; charset=x-user-defined')`) that fails outright on iOS WebKit (confirmed on a real iPhone, both Safari and Chrome for iOS, since they share the same WebKit engine). The custom parsers:
+Plain ES modules, no build step — each file is a single, focused concern with a small exported public API. Dependencies run one direction only (browse/annotate/wheel/scrub depend on player; player never depends on them), so there's nothing circular to trace through:
 
-- **MP3** (`readId3v2`) — ID3v2.2/2.3/2.4 frames (`TIT2`/`TPE1`/`APIC`)
-- **FLAC** (`readFlacTags`) — `VORBIS_COMMENT` and `PICTURE` metadata blocks
-- **M4A** (`readMp4Tags`) — walks MP4 atoms (`moov > udta > meta > ilst > ©nam/©ART/covr`); `moov` can be positioned anywhere in the file depending on how it was muxed (faststart vs. not), so this does an incremental top-level atom walk — fetching each atom's header and jumping to the next atom's exact computed position — rather than guessing a fixed probe window
+| Module | Role |
+|---|---|
+| `dom.js` | Every `getElementById` call, in one place, as a single `el` object |
+| `api.js` | All network calls to the Cloudflare Worker |
+| `view.js` | Which of the two full-screen views (browse vs. now-playing) is showing |
+| `library.js` | The loaded file tree — shared read-only data for both browsing and playback |
+| `metadata/` | Embedded tag parsers (see below) — pure functions, no DOM or app-state dependencies |
+| `artwork.js` | Now-playing artwork sizing/centering, the NASA fallback image, an on-screen debug surface |
+| `waveform.js` | Waveform bars, which double as the progress bar |
+| `banner.js` | Mini-status text/edge-fades and the shared scrub-progress UI |
+| `track-metadata.js` | Orchestrates loading a track's tags + artwork once playback starts |
+| `player.js` | Playback engine — the `<audio>` element, queue, resume, shuffle |
+| `browse.js` | Folder browsing, search, the wheel's cursor position |
+| `annotate.js` | The reorg-triage notes/tags panel |
+| `scrub.js` | Hold-and-slide-to-scrub gesture on the now-playing artwork |
+| `wheel.js` | Click wheel drag/tap gesture handling |
+| `main.js` | Entry point — loads the library, restores saved state, wires the couple of cross-module reactions (closing the annotate panel / re-rendering the browse list on playback change) that don't belong to any single module |
+
+Metadata parsing (`metadata/`) reads embedded track tags (title/artist/artwork) directly in the browser via `fetch()` + `ArrayBuffer` — no third-party library. This replaced an initial attempt using `jsmediatags`, which turned out to rely on a legacy XHR technique (`overrideMimeType('text/plain; charset=x-user-defined')`) that fails outright on iOS WebKit (confirmed on a real iPhone, both Safari and Chrome for iOS, since they share the same WebKit engine):
+
+- **MP3** (`metadata/id3.js`) — ID3v2.2/2.3/2.4 frames (`TIT2`/`TPE1`/`APIC`)
+- **FLAC** (`metadata/flac.js`) — `VORBIS_COMMENT` and `PICTURE` metadata blocks
+- **M4A** (`metadata/mp4.js`) — walks MP4 atoms (`moov > udta > meta > ilst > ©nam/©ART/covr`); `moov` can be positioned anywhere in the file depending on how it was muxed (faststart vs. not), so this does an incremental top-level atom walk — fetching each atom's header and jumping to the next atom's exact computed position — rather than guessing a fixed probe window
 
 Other formats (WAV, AIFF, WMA, MIDI, etc.) fall back to filename-only, same as untagged files.
 
@@ -69,7 +89,7 @@ npx wrangler secret put DROPBOX_REFRESH_TOKEN
 npx wrangler deploy
 ```
 
-If the deploy prints a different subdomain than `music-box-api.tissa-music.workers.dev`, update `WORKER_URL` at the top of `public/app.js` to match, and update `ALLOWED_ORIGIN` in `worker/worker.js` to match your actual Pages URL (CORS is locked to that one origin).
+If the deploy prints a different subdomain than `music-box-api.tissa-music.workers.dev`, update `WORKER_URL` at the top of `public/js/api.js` to match, and update `ALLOWED_ORIGIN` in `worker/worker.js` to match your actual Pages URL (CORS is locked to that one origin).
 
 ### File index
 
@@ -93,7 +113,7 @@ node build-index.js
 cd public && python3 -m http.server 8000
 ```
 
-Open `http://localhost:8000` in a **private/incognito window** — plain `http.server` doesn't send cache-busting headers, and repeat visits to the same local URL can otherwise serve stale JS/CSS. Playback and metadata hit the real deployed Worker and your actual Dropbox — there's no local backend to run.
+Open `http://localhost:8000` in a **private/incognito window** — plain `http.server` doesn't send cache-busting headers, and repeat visits to the same local URL can otherwise serve stale JS/CSS. Folder browsing, breadcrumbs, search, and the click wheel all work fully locally. **Actual playback won't** — the Worker's CORS is locked to the deployed Pages origin (see `ALLOWED_ORIGIN` above), so a local origin's `/stream` and `/nasa-image` requests get blocked with `Failed to fetch`. That's expected, not a bug: the app's own error handling catches it and shows a "failed to load" message rather than crashing.
 
 ## Known limitations
 
