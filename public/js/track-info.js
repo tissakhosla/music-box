@@ -39,6 +39,14 @@ function addRow(label, value) {
   el.infoFields.appendChild(row);
 }
 
+// Full app handoff to Dropbox isn't reliably possible from an installed
+// "Add to Home Screen" web app on iOS — universal links only get honored
+// from real Safari/SFSafariViewController contexts, not a standalone PWA's
+// WKWebView, so the link below is a best-effort (usually lands on Dropbox's
+// mobile website, not the native app). Copy Path is the reliable fallback:
+// paste it into the Dropbox app's own search.
+let currentPath = null;
+
 export function closeTrackInfoPanel() {
   el.trackInfoPanel.classList.remove('open', 'artwork-expanded');
 }
@@ -46,6 +54,7 @@ export function closeTrackInfoPanel() {
 export function openTrackInfoPanel() {
   const path = getCurrentTrackPath();
   if (!path) return;
+  currentPath = path;
 
   el.infoArtwork.src = el.artwork.src;
   el.infoFields.innerHTML = '';
@@ -86,6 +95,17 @@ export function openTrackInfoPanel() {
 }
 
 el.infoCloseBtn.addEventListener('click', closeTrackInfoPanel);
+
+el.infoCopyPathBtn.addEventListener('click', async () => {
+  if (!currentPath) return;
+  try {
+    await navigator.clipboard.writeText(currentPath);
+    el.infoCopyPathBtn.textContent = 'Copied!';
+  } catch (e) {
+    el.infoCopyPathBtn.textContent = 'Copy failed';
+  }
+  setTimeout(() => { el.infoCopyPathBtn.textContent = 'Copy Path'; }, 1500);
+});
 
 // Tap the artwork to toggle a full-bleed, uncropped view; while expanded, a
 // downward swipe dismisses it too — same "tap or slide back" affordance as a
