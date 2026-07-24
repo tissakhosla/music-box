@@ -365,7 +365,7 @@ body {
   flex-direction: column;
   gap: 0.7rem;
   padding: calc(1.2rem + env(safe-area-inset-top)) 1.2rem calc(1.2rem + env(safe-area-inset-bottom));
-  background: #090909;
+  background: #0c0c0c;
   overflow-y: auto;
   color: #eee;
   font-family: monospace;
@@ -472,7 +472,7 @@ body {
 #annotate-save-btn {
   background: #eee;
   border: 1px solid #eee;
-  color: #090909;
+  color: #0c0c0c;
   font-weight: 600;
 }
 
