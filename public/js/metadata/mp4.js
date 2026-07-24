@@ -12,6 +12,7 @@ const ATOM_ALB = [0xa9, 0x61, 0x6c, 0x62]; // ©alb
 const ATOM_GEN = [0xa9, 0x67, 0x65, 0x6e]; // ©gen
 const ATOM_DAY = [0xa9, 0x64, 0x61, 0x79]; // ©day
 const ATOM_WRT = [0xa9, 0x77, 0x72, 0x74]; // ©wrt
+const ATOM_CMT = [0xa9, 0x63, 0x6d, 0x74]; // ©cmt
 const ATOM_AART = atomBytes('aART');
 const ATOM_TRKN = atomBytes('trkn');
 
@@ -121,6 +122,8 @@ export async function readMp4Tags(url) {
   if (day) result.year = extractDataAtomText(ilstBuf, day).slice(0, 4);
   const wrt = findAtom(ilstBuf, ATOM_WRT);
   if (wrt) result.composer = extractDataAtomText(ilstBuf, wrt);
+  const cmt = findAtom(ilstBuf, ATOM_CMT);
+  if (cmt) result.comment = extractDataAtomText(ilstBuf, cmt);
   const trkn = findAtom(ilstBuf, ATOM_TRKN);
   if (trkn) result.track = extractTrackNumber(ilstBuf, trkn);
   const covr = findAtom(ilstBuf, atomBytes('covr'));

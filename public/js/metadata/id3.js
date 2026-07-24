@@ -59,6 +59,7 @@ export async function readId3v2(url) {
     else if (frameId === 'TDRC') result.year = decodeId3Text(frameData).slice(0, 4);
     else if (frameId === 'TRCK' || frameId === 'TRK') result.track = decodeId3Text(frameData);
     else if (frameId === 'TCOM' || frameId === 'TCM') result.composer = decodeId3Text(frameData);
+    else if (frameId === 'COMM' || frameId === 'COM') result.comment = decodeCommFrame(frameData);
     else if (frameId === 'APIC' || frameId === 'PIC') result.picture = decodeApicFrame(frameData, isV22);
 
     offset = frameDataEnd;
@@ -70,6 +71,30 @@ export async function readId3v2(url) {
 function decodeId3Text(frameData) {
   const encoding = frameData[0];
   const textBytes = frameData.slice(1);
+  let text;
+  if (encoding === 0) text = new TextDecoder('iso-8859-1').decode(textBytes);
+  else if (encoding === 1) text = new TextDecoder('utf-16').decode(textBytes);
+  else if (encoding === 2) text = new TextDecoder('utf-16be').decode(textBytes);
+  else text = new TextDecoder('utf-8').decode(textBytes);
+  return text.replace(/\0+$/, '').trim();
+}
+
+// COMM frames prefix the actual comment text with a 3-byte language code and a
+// short description (in the frame's own encoding, null-terminated) — skip both,
+// same terminator-scanning idea as decodeApicFrame's description skip below.
+function decodeCommFrame(frameData) {
+  const encoding = frameData[0];
+  let offset = 4; // 1 byte encoding + 3 bytes language
+  if (encoding === 1 || encoding === 2) {
+    let end = offset;
+    while (end + 1 < frameData.length && !(frameData[end] === 0 && frameData[end + 1] === 0)) end += 2;
+    offset = end + 2;
+  } else {
+    let end = offset;
+    while (end < frameData.length && frameData[end] !== 0) end++;
+    offset = end + 1;
+  }
+  const textBytes = frameData.slice(offset);
   let text;
   if (encoding === 0) text = new TextDecoder('iso-8859-1').decode(textBytes);
   else if (encoding === 1) text = new TextDecoder('utf-16').decode(textBytes);

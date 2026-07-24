@@ -37,4 +37,5 @@ export const el = {
   infoArtwork: document.getElementById('info-artwork'),
   infoFields: document.getElementById('info-fields'),
   infoCloseBtn: document.getElementById('info-close-btn'),
+  infoDropboxLink: document.getElementById('info-dropbox-link'),
 };

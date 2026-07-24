@@ -56,6 +56,8 @@ function parseVorbisComment(buf, start, end, result) {
     else if (key === 'DATE') result.year = value.slice(0, 4);
     else if (key === 'TRACKNUMBER') result.track = value;
     else if (key === 'COMPOSER') result.composer = value;
+    else if (key === 'COMMENT') result.comment = value;
+    else if (key === 'DESCRIPTION' && !result.comment) result.comment = value;
   }
 }
 

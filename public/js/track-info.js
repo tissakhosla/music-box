@@ -10,6 +10,15 @@ import { fmtTime } from './banner.js';
 import { getStreamUrl } from './api.js';
 import { fetchContentLength } from './metadata/bytes.js';
 
+const ARTWORK_SWIPE_DISMISS_PX = 70; // downward drag distance on the expanded artwork that counts as "swipe to go back"
+const TAP_MOVE_TOLERANCE_PX = 10;    // pointer movement below this still counts as a tap, not a drag
+
+function dropboxLocationUrl(folder, fileName) {
+  const encodedFolder = folder.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+  const base = encodedFolder ? `https://www.dropbox.com/home/${encodedFolder}` : 'https://www.dropbox.com/home';
+  return `${base}?preview=${encodeURIComponent(fileName)}`;
+}
+
 function fmtBytes(bytes) {
   if (!bytes) return null;
   const mb = bytes / (1024 * 1024);
@@ -31,7 +40,7 @@ function addRow(label, value) {
 }
 
 export function closeTrackInfoPanel() {
-  el.trackInfoPanel.classList.remove('open');
+  el.trackInfoPanel.classList.remove('open', 'artwork-expanded');
 }
 
 export function openTrackInfoPanel() {
@@ -50,6 +59,7 @@ export function openTrackInfoPanel() {
   addRow('Year', tags.year);
   addRow('Track', tags.track);
   addRow('Composer', tags.composer);
+  addRow('Comments', tags.comment);
 
   const slash = path.lastIndexOf('/');
   const fileName = slash === -1 ? path : path.slice(slash + 1);
@@ -60,6 +70,8 @@ export function openTrackInfoPanel() {
   addRow('Folder', folder);
   addRow('Format', ext);
   addRow('Duration', fmtTime(getDuration()));
+
+  el.infoDropboxLink.href = dropboxLocationUrl(folder, fileName);
 
   el.trackInfoPanel.classList.add('open');
 
@@ -74,3 +86,38 @@ export function openTrackInfoPanel() {
 }
 
 el.infoCloseBtn.addEventListener('click', closeTrackInfoPanel);
+
+// Tap the artwork to toggle a full-bleed, uncropped view; while expanded, a
+// downward swipe dismisses it too — same "tap or slide back" affordance as a
+// native photo viewer, on top of tapping again (mirrors scrub.js's pointer
+// capture pattern used for the Now Playing scrub gesture).
+let artPointerId = null;
+let artDownX = 0;
+let artDownY = 0;
+let artMoved = false;
+
+el.infoArtwork.addEventListener('pointerdown', (e) => {
+  artPointerId = e.pointerId;
+  artDownX = e.clientX;
+  artDownY = e.clientY;
+  artMoved = false;
+  el.infoArtwork.setPointerCapture(e.pointerId);
+});
+
+el.infoArtwork.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== artPointerId) return;
+  const dx = e.clientX - artDownX;
+  const dy = e.clientY - artDownY;
+  if (Math.hypot(dx, dy) > TAP_MOVE_TOLERANCE_PX) artMoved = true;
+  if (el.trackInfoPanel.classList.contains('artwork-expanded') && dy > ARTWORK_SWIPE_DISMISS_PX) {
+    el.trackInfoPanel.classList.remove('artwork-expanded');
+  }
+});
+
+el.infoArtwork.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== artPointerId) return;
+  artPointerId = null;
+  if (!artMoved) el.trackInfoPanel.classList.toggle('artwork-expanded');
+});
+
+el.infoArtwork.addEventListener('pointercancel', () => { artPointerId = null; });
