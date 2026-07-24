@@ -533,9 +533,9 @@ body {
 }
 .info-label { font-size: 0.65rem; opacity: 0.5; flex: none; }
 .info-value { font-size: 0.85rem; text-align: right; overflow-wrap: anywhere; }
+.info-value-copyable { cursor: pointer; border-bottom: 1px dashed #444; }
 
-#info-actions { display: flex; flex-direction: column; gap: 0.7rem; margin-top: auto; padding-top: 0.5rem; }
-#info-actions-row { display: flex; gap: 0.7rem; }
+#info-actions { display: flex; gap: 0.7rem; margin-top: auto; padding-top: 0.5rem; }
 #info-actions button, #info-actions a {
   flex: 1;
   font-family: monospace;

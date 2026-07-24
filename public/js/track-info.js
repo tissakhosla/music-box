@@ -7,16 +7,20 @@ import { el } from './dom.js';
 import { getCurrentTrackPath, getDuration } from './player.js';
 import { getLastTags } from './track-metadata.js';
 import { fmtTime } from './banner.js';
-import { getStreamUrl } from './api.js';
+import { getStreamUrl, getShareLink } from './api.js';
 import { fetchContentLength } from './metadata/bytes.js';
 
 const ARTWORK_SWIPE_DISMISS_PX = 70; // downward drag distance on the expanded artwork that counts as "swipe to go back"
 const TAP_MOVE_TOLERANCE_PX = 10;    // pointer movement below this still counts as a tap, not a drag
+const COPY_FEEDBACK_MS = 1200;
 
-function dropboxLocationUrl(folder, fileName) {
-  const encodedFolder = folder.split('/').filter(Boolean).map(encodeURIComponent).join('/');
-  const base = encodedFolder ? `https://www.dropbox.com/home/${encodedFolder}` : 'https://www.dropbox.com/home';
-  return `${base}?preview=${encodeURIComponent(fileName)}`;
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function fmtBytes(bytes) {
@@ -39,12 +43,29 @@ function addRow(label, value) {
   el.infoFields.appendChild(row);
 }
 
-// Full app handoff to Dropbox isn't reliably possible from an installed
-// "Add to Home Screen" web app on iOS — universal links only get honored
-// from real Safari/SFSafariViewController contexts, not a standalone PWA's
-// WKWebView, so the link below is a best-effort (usually lands on Dropbox's
-// mobile website, not the native app). Copy Path is the reliable fallback:
-// paste it into the Dropbox app's own search.
+// Tapping the filename copies just the name (not the full path) — Dropbox's
+// in-app search matches filenames, not full paths, so this is the fallback
+// that actually works for "search for this file" (a full-path copy failed
+// that use case in testing).
+function addCopyableRow(label, value) {
+  if (!value) return;
+  const row = document.createElement('div');
+  row.className = 'info-row';
+  const l = document.createElement('div');
+  l.className = 'info-label';
+  l.textContent = label;
+  const v = document.createElement('div');
+  v.className = 'info-value info-value-copyable';
+  v.textContent = value;
+  v.addEventListener('click', async () => {
+    const ok = await copyToClipboard(value);
+    v.textContent = ok ? 'Copied!' : 'Copy failed';
+    setTimeout(() => { v.textContent = value; }, COPY_FEEDBACK_MS);
+  });
+  row.append(l, v);
+  el.infoFields.appendChild(row);
+}
+
 let currentPath = null;
 
 export function closeTrackInfoPanel() {
@@ -75,12 +96,10 @@ export function openTrackInfoPanel() {
   const folder = slash === -1 ? '' : path.slice(0, slash);
   const ext = fileName.slice(fileName.lastIndexOf('.') + 1).toUpperCase();
 
-  addRow('File', fileName);
+  addCopyableRow('File', fileName);
   addRow('Folder', folder);
   addRow('Format', ext);
   addRow('Duration', fmtTime(getDuration()));
-
-  el.infoDropboxLink.href = dropboxLocationUrl(folder, fileName);
 
   el.trackInfoPanel.classList.add('open');
 
@@ -96,15 +115,21 @@ export function openTrackInfoPanel() {
 
 el.infoCloseBtn.addEventListener('click', closeTrackInfoPanel);
 
-el.infoCopyPathBtn.addEventListener('click', async () => {
+el.infoShareLinkBtn.addEventListener('click', async () => {
   if (!currentPath) return;
+  const path = currentPath;
+  el.infoShareLinkBtn.textContent = 'Generating…';
+  el.infoShareLinkBtn.disabled = true;
   try {
-    await navigator.clipboard.writeText(currentPath);
-    el.infoCopyPathBtn.textContent = 'Copied!';
+    const url = await getShareLink(path);
+    const ok = await copyToClipboard(url);
+    el.infoShareLinkBtn.textContent = ok ? 'Copied!' : 'Link ready (copy failed)';
   } catch (e) {
-    el.infoCopyPathBtn.textContent = 'Copy failed';
+    el.infoShareLinkBtn.textContent = 'Failed';
+  } finally {
+    el.infoShareLinkBtn.disabled = false;
+    setTimeout(() => { el.infoShareLinkBtn.textContent = 'Copy View Only Link'; }, COPY_FEEDBACK_MS);
   }
-  setTimeout(() => { el.infoCopyPathBtn.textContent = 'Copy Path'; }, 1500);
 });
 
 // Tap the artwork to toggle a full-bleed, uncropped view; while expanded, a

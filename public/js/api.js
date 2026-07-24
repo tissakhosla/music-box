@@ -9,6 +9,13 @@ export async function getStreamUrl(path) {
   return data.url;
 }
 
+export async function getShareLink(path) {
+  const res = await fetch(`${WORKER_URL}/share?path=${encodeURIComponent(path)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Worker error: ${res.status}`);
+  return data.url;
+}
+
 // NASA's Astronomy Picture of the Day archive has a built-in random-pick feature
 // (count=N), so we ask for a few and filter out the occasional video-of-the-day
 // entry rather than searching for one ourselves.

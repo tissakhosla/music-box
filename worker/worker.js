@@ -1,5 +1,7 @@
 const DROPBOX_TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token';
 const DROPBOX_TEMP_LINK_URL = 'https://api.dropboxapi.com/2/files/get_temporary_link';
+const DROPBOX_CREATE_SHARED_LINK_URL = 'https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings';
+const DROPBOX_LIST_SHARED_LINKS_URL = 'https://api.dropboxapi.com/2/sharing/list_shared_links';
 const NASA_APOD_URL = 'https://api.nasa.gov/planetary/apod';
 const ALLOWED_ORIGIN = 'https://music-box-43b.pages.dev';
 
@@ -43,6 +45,45 @@ async function getStreamUrl(env, path) {
   }
   const data = await res.json();
   return data.link;
+}
+
+// View-only shared link for a file, for the track info page's "Copy View Only
+// Link" button — requires the sharing.write scope (and sharing.read for the
+// list_shared_links fallback below), which is not part of this app's original
+// files.metadata.read/files.content.read authorization; see README's Setup
+// section for the re-authorization steps that add it.
+async function getShareLink(env, path) {
+  const accessToken = await getAccessToken(env);
+  const dropboxPath = `/${path}`;
+
+  const createRes = await fetch(DROPBOX_CREATE_SHARED_LINK_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      path: dropboxPath,
+      settings: { requested_visibility: 'public', audience: 'public', access: 'viewer' },
+    }),
+  });
+  if (createRes.ok) {
+    const data = await createRes.json();
+    return data.url;
+  }
+
+  // A link already exists for this file (a prior share, or a re-tap of this same
+  // button) — look it up instead of treating the 409 as a failure.
+  const errBody = await createRes.json().catch(() => null);
+  if (createRes.status === 409 && errBody?.error?.['.tag'] === 'shared_link_already_exists') {
+    const listRes = await fetch(DROPBOX_LIST_SHARED_LINKS_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: dropboxPath, direct_only: true }),
+    });
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      if (listData.links && listData.links[0]) return listData.links[0].url;
+    }
+  }
+  throw new Error(`Dropbox create_shared_link_with_settings failed: ${createRes.status} ${JSON.stringify(errBody)}`);
 }
 
 // Fallback artwork for tracks with no embedded picture — NASA's Astronomy Picture of
@@ -108,6 +149,17 @@ export default {
       if (!path) return json({ error: 'Missing path' }, 400);
       try {
         const link = await getStreamUrl(env, path);
+        return json({ url: link });
+      } catch (e) {
+        return json({ error: e.message }, 502);
+      }
+    }
+
+    if (url.pathname === '/share') {
+      const path = url.searchParams.get('path');
+      if (!path) return json({ error: 'Missing path' }, 400);
+      try {
+        const link = await getShareLink(env, path);
         return json({ url: link });
       } catch (e) {
         return json({ error: e.message }, 502);

@@ -25,7 +25,7 @@ Playback position and the current track persist across reloads (`localStorage`),
 | `public/icons/` | Click-wheel glyph icons (192/512px + iOS apple-touch-icon) referenced by `manifest.json` and `index.html` |
 | `build-index.js` | Converts `audio_files.txt` (flat list of Dropbox paths) into the nested `public/files.json` tree |
 | `audio_files.txt` | Flat list of every audio file path in the Dropbox account, one per line — **not committed** (contains your private file listing), produced via `rclone lsf -R --files-only dropbox:` (or similar) |
-| `worker/worker.js` | Cloudflare Worker — proxies Dropbox: exchanges a stored refresh token for a short-lived access token, then returns a temporary streaming URL for a given file path via `GET /stream?path=...` |
+| `worker/worker.js` | Cloudflare Worker — proxies Dropbox: exchanges a stored refresh token for a short-lived access token, then returns a temporary streaming URL for a given file path via `GET /stream?path=...`, or a permanent view-only shared link via `GET /share?path=...` (requires the `sharing.write`/`sharing.read` scopes above) |
 | `worker/wrangler.toml` | Worker config — deployed as `music-box-api` |
 
 ### `public/js/` module layout
@@ -64,7 +64,7 @@ Other formats (WAV, AIFF, WMA, MIDI, etc.) fall back to filename-only, same as u
 ### Dropbox API app
 
 1. [Dropbox App Console](https://www.dropbox.com/developers/apps) → **Create app** → Scoped access → **Full Dropbox** access (needed since files span multiple top-level folders, not one app-specific folder)
-2. **Permissions** tab → enable `files.metadata.read`, `files.content.read` → **Submit**
+2. **Permissions** tab → enable `files.metadata.read`, `files.content.read`, `sharing.write`, `sharing.read` → **Submit** (the `sharing.*` scopes are for the track info page's "Copy View Only Link" button — `worker/worker.js`'s `/share` endpoint)
 3. **Settings** tab → note the **App key** and **App secret**
 4. Generate a refresh token (one-time):
    ```
