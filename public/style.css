@@ -518,6 +518,7 @@ body {
   border-radius: 0;
   object-fit: contain;
   margin: 0;
+  background: #0c0c0c;
 }
 
 #info-fields { display: flex; flex-direction: column; gap: 0.6rem; }
