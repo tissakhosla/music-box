@@ -8,6 +8,15 @@ import { setBannerMetadata } from './banner.js';
 import { setArtwork, setFallbackArtwork, showArtworkDebug } from './artwork.js';
 import { setTrackInfo } from './media-session.js';
 
+// Full tags of the most recently loaded track, cached for the track-info panel
+// (getLastTags guards against a stale read via the path check, same idea as isCurrent above).
+let lastTagsPath = null;
+let lastTags = null;
+
+export function getLastTags(path) {
+  return lastTagsPath === path ? lastTags : null;
+}
+
 // `isCurrent(path)` lets the caller veto banner/artwork updates if a different
 // track started playing while this was still loading.
 export async function loadTrackMetadata(file, isCurrent) {
@@ -36,6 +45,9 @@ export async function loadTrackMetadata(file, isCurrent) {
   if (!isCurrent(file.path)) { el.artworkWrap.classList.remove('loading'); return; }
 
   if (!tags) { setFallbackArtwork(file.path, isCurrent); return; }
+
+  lastTagsPath = file.path;
+  lastTags = tags;
 
   if (tags.title || tags.album || tags.artist) {
     setBannerMetadata(tags.title || file.name, tags.album, tags.artist);

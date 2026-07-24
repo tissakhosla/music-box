@@ -107,6 +107,17 @@
     </div>
   </div>
 
+  <!-- full-screen track info panel — reached by tapping the now-playing bar a
+       second time while already on the Now Playing screen; deliberately
+       outside #device, same as #annotate-panel above -->
+  <div id="track-info-panel">
+    <img id="info-artwork" alt="">
+    <div id="info-fields"></div>
+    <div id="info-actions">
+      <button id="info-close-btn" type="button">Close</button>
+    </div>
+  </div>
+
   <audio id="audio" preload="none"></audio>
 
   <script type="module" src="js/main.js"></script>

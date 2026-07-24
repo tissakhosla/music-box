@@ -4,7 +4,7 @@ import { readId3v2 } from './id3.js';
 import { readFlacTags } from './flac.js';
 import { readMp4Tags } from './mp4.js';
 
-// returns { title?, artist?, album?, picture? } or null
+// returns { title?, artist?, album?, albumArtist?, genre?, year?, track?, composer?, picture? } or null
 export async function readTags(url, filePath) {
   const ext = filePath.slice(filePath.lastIndexOf('.') + 1).toLowerCase();
   if (ext === 'mp3') return readId3v2(url);

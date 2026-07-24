@@ -33,4 +33,8 @@ export const el = {
   annotateSaveBtn: document.getElementById('annotate-save-btn'),
   shuffleAllBtn: document.getElementById('shuffle-all-btn'),
   locateBtn: document.getElementById('locate-btn'),
+  trackInfoPanel: document.getElementById('track-info-panel'),
+  infoArtwork: document.getElementById('info-artwork'),
+  infoFields: document.getElementById('info-fields'),
+  infoCloseBtn: document.getElementById('info-close-btn'),
 };

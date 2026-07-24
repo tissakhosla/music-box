@@ -4,7 +4,7 @@
 import { el } from './dom.js';
 import { updateWaveformProgress } from './waveform.js';
 
-function fmtTime(sec) {
+export function fmtTime(sec) {
   if (!isFinite(sec)) return '0:00';
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);

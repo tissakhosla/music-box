@@ -476,6 +476,58 @@ body {
   font-weight: 600;
 }
 
+/* ---------- track info panel (all embedded tags + file info, read-only) ---------- */
+
+#track-info-panel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: calc(1.2rem + env(safe-area-inset-top)) 1.2rem calc(1.2rem + env(safe-area-inset-bottom));
+  background: #0c0c0c;
+  overflow-y: auto;
+  color: #eee;
+  font-family: monospace;
+}
+#track-info-panel.open { display: flex; }
+
+#info-artwork {
+  width: min(60vw, 220px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #141414;
+}
+
+#info-fields { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  border-bottom: 1px solid #222;
+  padding-bottom: 0.5rem;
+}
+.info-label { font-size: 0.65rem; opacity: 0.5; flex: none; }
+.info-value { font-size: 0.85rem; text-align: right; overflow-wrap: anywhere; }
+
+#info-actions { display: flex; margin-top: auto; padding-top: 0.5rem; }
+#info-close-btn {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.95rem;
+  padding: 0.75em;
+  border-radius: 6px;
+  cursor: pointer;
+  background: none;
+  border: 1px solid #444;
+  color: #eee;
+}
+
 /* ---------- click wheel ---------- */
 
 #wheel {

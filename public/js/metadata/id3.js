@@ -53,6 +53,12 @@ export async function readId3v2(url) {
     if (frameId === 'TIT2' || frameId === 'TT2') result.title = decodeId3Text(frameData);
     else if (frameId === 'TPE1' || frameId === 'TP1') result.artist = decodeId3Text(frameData);
     else if (frameId === 'TALB' || frameId === 'TAL') result.album = decodeId3Text(frameData);
+    else if (frameId === 'TPE2') result.albumArtist = decodeId3Text(frameData);
+    else if (frameId === 'TCON' || frameId === 'TCO') result.genre = decodeId3Text(frameData);
+    else if (frameId === 'TYER' || frameId === 'TYE') result.year = decodeId3Text(frameData).slice(0, 4);
+    else if (frameId === 'TDRC') result.year = decodeId3Text(frameData).slice(0, 4);
+    else if (frameId === 'TRCK' || frameId === 'TRK') result.track = decodeId3Text(frameData);
+    else if (frameId === 'TCOM' || frameId === 'TCM') result.composer = decodeId3Text(frameData);
     else if (frameId === 'APIC' || frameId === 'PIC') result.picture = decodeApicFrame(frameData, isV22);
 
     offset = frameDataEnd;

@@ -51,6 +51,11 @@ function parseVorbisComment(buf, start, end, result) {
     if (key === 'TITLE') result.title = value;
     else if (key === 'ARTIST') result.artist = value;
     else if (key === 'ALBUM') result.album = value;
+    else if (key === 'ALBUMARTIST') result.albumArtist = value;
+    else if (key === 'GENRE') result.genre = value;
+    else if (key === 'DATE') result.year = value.slice(0, 4);
+    else if (key === 'TRACKNUMBER') result.track = value;
+    else if (key === 'COMPOSER') result.composer = value;
   }
 }
 
