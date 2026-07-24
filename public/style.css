@@ -550,6 +550,9 @@ body {
   text-decoration: none;
 }
 
+#info-share-link-btn { display: flex; align-items: center; justify-content: center; gap: 0.9rem; }
+#info-share-link-btn .icon { width: 18px; height: 18px; display: block; }
+
 /* ---------- click wheel ---------- */
 
 #wheel {

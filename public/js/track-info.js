@@ -115,6 +115,11 @@ export function openTrackInfoPanel() {
 
 el.infoCloseBtn.addEventListener('click', closeTrackInfoPanel);
 
+// The button's resting state is icon-only (copy/eye/link) — captured once here
+// so the transient text states below (loading/success/failure) have something
+// to restore to afterward.
+const shareLinkBtnIcons = el.infoShareLinkBtn.innerHTML;
+
 el.infoShareLinkBtn.addEventListener('click', async () => {
   if (!currentPath) return;
   const path = currentPath;
@@ -128,7 +133,7 @@ el.infoShareLinkBtn.addEventListener('click', async () => {
     el.infoShareLinkBtn.textContent = 'Failed';
   } finally {
     el.infoShareLinkBtn.disabled = false;
-    setTimeout(() => { el.infoShareLinkBtn.textContent = 'Copy View Only Link'; }, COPY_FEEDBACK_MS);
+    setTimeout(() => { el.infoShareLinkBtn.innerHTML = shareLinkBtnIcons; }, COPY_FEEDBACK_MS);
   }
 });
 
